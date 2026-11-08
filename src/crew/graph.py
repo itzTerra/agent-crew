@@ -11,6 +11,10 @@ DO_FIRST = "crew:do-first"
 OWNER_PREFIX = "crew:owner-"
 OWNER_ASKS = ("accept", "decision", "stuck", "proposal")
 WAITING_ON_OWNER = frozenset(f"{OWNER_PREFIX}{ask}" for ask in OWNER_ASKS)
+RUNNING = "crew:in-progress"
+# Units with an open PR: they hold their owned paths but no agent slot.
+BUSY_ORDER = ("crew:in-review", "crew:changes-requested", "crew:owner-accept", "crew:owner-stuck")
+BUSY = frozenset(BUSY_ORDER)
 _WILDCARD = re.compile(r"[*?\[]")
 
 
@@ -26,6 +30,14 @@ class Unit:
     depends_on: list[int]
     owns: list[str]
     kind: str | None
+
+
+@dataclass(frozen=True)
+class Skipped:
+    """A ready unit ``crew next`` leaves out, and why."""
+
+    number: int
+    reason: str
 
 
 def label_names(item: dict) -> set[str]:
@@ -170,36 +182,70 @@ def rough_order(units: dict[int, Unit]) -> list[int]:
 def next_ready(
     units: dict[int, Unit], running: list[int], max_agents: int, busy: list[int] = ()
 ) -> list[int]:
-    """The units to start now, in pick order.
+    """The units to start now, in pick order; see ``ready_report``."""
+    return ready_report(units, running, max_agents, busy)[0]
+
+
+def ready_report(
+    units: dict[int, Unit], running: list[int], max_agents: int, busy: list[int] = ()
+) -> tuple[list[int], list[Skipped]]:
+    """The units to start now, in pick order, and why every other ready unit is left out.
 
     A unit is eligible when it is labeled ready, waits on nothing from the owner, every
     dependency is closed, and it is not in a dependency cycle. Units whose owned paths
     overlap a running, busy or already chosen unit are skipped. ``running`` units use
     agent slots; ``busy`` units (in review or waiting on the owner) only hold their paths.
+
+    Returns:
+        ``(picks, skipped)``: each ready unit not picked gets one ``Skipped`` with the
+        first reason that applies, ordered by unit number.
     """
     in_cycle = {n for cycle in find_cycles(units) for n in cycle}
     counts = dependents_count(units)
-    eligible = [
-        unit
-        for unit in units.values()
-        if READY in unit.labels
-        and not unit.labels & WAITING_ON_OWNER
-        and unit.number not in running
-        and unit.number not in busy
-        and unit.number not in in_cycle
-        and not any(dep in units for dep in unit.depends_on)
-    ]
+    skipped: list[Skipped] = []
+    eligible: list[Unit] = []
+    for unit in units.values():
+        if READY not in unit.labels:
+            continue
+        reason = _ineligible_reason(unit, units, running, busy, in_cycle)
+        if reason:
+            skipped.append(Skipped(unit.number, reason))
+        else:
+            eligible.append(unit)
     eligible.sort(
         key=lambda u: priority_key(DO_FIRST in u.labels, counts[u.number], u.created_at, u.number)
     )
 
-    taken = [units[n].owns for n in [*running, *busy] if n in units]
+    taken = [(n, units[n].owns) for n in [*running, *busy] if n in units]
     chosen: list[int] = []
     for unit in eligible:
-        if len(chosen) >= max_agents - len(running):
-            break
-        if any(owns_overlap(unit.owns, owns) for owns in taken):
-            continue
-        chosen.append(unit.number)
-        taken.append(unit.owns)
-    return chosen
+        overlap = next((n for n, owns in taken if owns_overlap(unit.owns, owns)), None)
+        if overlap is not None:
+            skipped.append(Skipped(unit.number, f"owns overlap with #{overlap}"))
+        elif len(chosen) >= max_agents - len(running):
+            used = len(running) + len(chosen)
+            skipped.append(
+                Skipped(unit.number, f"WIP limit reached ({used} of {max_agents} agents)")
+            )
+        else:
+            chosen.append(unit.number)
+            taken.append((unit.number, unit.owns))
+    skipped.sort(key=lambda s: s.number)
+    return chosen, skipped
+
+
+def _ineligible_reason(
+    unit: Unit, units: dict[int, Unit], running, busy, in_cycle: set[int]
+) -> str | None:
+    if unit.number in running:
+        return "already running"
+    if unit.number in busy:
+        label = next((name for name in BUSY_ORDER if name in unit.labels), None)
+        return f"has an open PR ({label})" if label else "has an open PR"
+    if waiting := sorted(unit.labels & WAITING_ON_OWNER):
+        return f"waits on the owner ({waiting[0]})"
+    if unit.number in in_cycle:
+        return "in a dependency cycle"
+    if open_deps := [dep for dep in unit.depends_on if dep in units]:
+        return "depends on open " + ", ".join(f"#{dep}" for dep in open_deps)
+    return None

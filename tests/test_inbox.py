@@ -130,4 +130,9 @@ def test_next_cli(tmp_path, monkeypatch, capsys):
     )
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     assert main(["next", "--root", str(PROJECT)]) == 0
-    assert capsys.readouterr().out.strip().splitlines() == ["#1 Unit 1"]
+    assert capsys.readouterr().out.strip().splitlines() == [
+        "#1 Unit 1",
+        "",
+        "Left out",
+        "  #3 Unit 3 — owns overlap with #2",
+    ]

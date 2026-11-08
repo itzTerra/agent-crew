@@ -1,10 +1,12 @@
 from crew.graph import (
+    Skipped,
     Unit,
     build_units,
     dependents_count,
     find_cycles,
     next_ready,
     owns_overlap,
+    ready_report,
 )
 
 
@@ -105,3 +107,32 @@ def test_next_ready_respects_max_agents():
     assert next_ready(units, running=[], max_agents=2) == [1, 2]
     assert next_ready(units, running=[1], max_agents=2) == [2]
     assert next_ready(units, running=[1, 2], max_agents=2) == []
+
+
+def test_ready_report_reasons():
+    units = units_of(
+        issue(1, labels=["crew:ready"], owns=["a/"]),
+        issue(2, labels=["crew:ready", "crew:in-review"], owns=["b/"]),
+        issue(3, labels=["crew:ready", "crew:owner-decision"], owns=["c/"]),
+        issue(4, deps=[5], labels=["crew:ready"], owns=["d/"]),
+        issue(5, deps=[4], labels=["crew:ready"], owns=["e/"]),
+        issue(6, deps=[20, 21], labels=["crew:ready"], owns=["f/"]),
+        issue(7, labels=["crew:ready"], owns=["a/x.py"]),
+        issue(8, labels=["crew:ready"], owns=["h/"]),
+        issue(9, labels=["crew:ready"], owns=["i/"]),
+        issue(20, labels=["crew:rough"], owns=["z/"]),
+        issue(21, labels=["crew:rough"], owns=["y/"]),
+    )
+    picks, skipped = ready_report(units, running=[1], max_agents=2, busy=[2])
+    assert picks == [8]
+    assert skipped == [
+        Skipped(1, "already running"),
+        Skipped(2, "has an open PR (crew:in-review)"),
+        Skipped(3, "waits on the owner (crew:owner-decision)"),
+        Skipped(4, "in a dependency cycle"),
+        Skipped(5, "in a dependency cycle"),
+        Skipped(6, "depends on open #20, #21"),
+        Skipped(7, "owns overlap with #1"),
+        Skipped(9, "WIP limit reached (2 of 2 agents)"),
+    ]
+    assert next_ready(units, running=[1], max_agents=2, busy=[2]) == picks

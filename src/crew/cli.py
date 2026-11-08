@@ -21,12 +21,6 @@ EXIT_OK = 0
 EXIT_FINDINGS = 1
 EXIT_ERROR = 2
 
-RUNNING = "crew:in-progress"
-# Units with an open PR: they hold their owned paths but no agent slot.
-BUSY = frozenset(
-    {"crew:in-review", "crew:changes-requested", "crew:owner-accept", "crew:owner-stuck"}
-)
-
 
 class CliError(Exception):
     """An expected failure, reported as a single error line."""
@@ -206,7 +200,7 @@ def _print_cycles(cycles: list[list[int]]) -> None:
 
 
 def _cmd_next(args: argparse.Namespace) -> int:
-    from crew.graph import build_units, find_cycles, next_ready, rough_order
+    from crew.graph import BUSY, RUNNING, build_units, find_cycles, ready_report, rough_order
 
     config = load_config(args.root)
     units = build_units(make_github(config.repo).list_issues("open"))
@@ -219,11 +213,16 @@ def _cmd_next(args: argparse.Namespace) -> int:
         return EXIT_OK
     running = [n for n, u in units.items() if RUNNING in u.labels]
     busy = [n for n, u in units.items() if n not in running and u.labels & BUSY]
-    picks = next_ready(units, running, config.max_agents, busy)
+    picks, skipped = ready_report(units, running, config.max_agents, busy)
     for number in picks:
         print(f"#{number} {units[number].title}")
     if not picks:
         print("nothing ready")
+    if skipped:
+        print()
+        print("Left out")
+        for item in skipped:
+            print(f"  #{item.number} {units[item.number].title} — {item.reason}")
     _print_cycles(find_cycles(units))
     return EXIT_OK
 

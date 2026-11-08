@@ -63,7 +63,12 @@ def test_next_cli_counts_only_in_progress(monkeypatch, capsys):
     )
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     assert main(["next", "--root", str(PROJECT)]) == 0
-    assert capsys.readouterr().out.strip().splitlines() == ["#3 Unit 3"]
+    assert capsys.readouterr().out.strip().splitlines() == [
+        "#3 Unit 3",
+        "",
+        "Left out",
+        "  #4 Unit 4 — owns overlap with #1",
+    ]
 
 
 def test_owns_paths_are_normalized():

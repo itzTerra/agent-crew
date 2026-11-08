@@ -224,16 +224,16 @@ task here.
   `in a dependency cycle` · `depends on open #12, #15` · `owns overlap with #7` ·
   `WIP limit reached (2 of 2 agents)`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_ready_report_reasons`: one fixture with a ready unit for each reason; assert the exact
     `Skipped` list, ordered by unit number.
   - `test_next_cli_prints_left_out`: `crew next` output has the picks, then a `Left out` block of lines
     `  #N <title> — <reason>`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement `ready_report` by moving the body of `next_ready` into it and recording a
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement `ready_report` by moving the body of `next_ready` into it and recording a
   reason wherever a unit is filtered out. The overlap reason names the first overlapping unit.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: explain why crew next leaves ready units out`.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: explain why crew next leaves ready units out`.
 
 ### Task 5: Label states that agree between issue and PR (R11, R12, R13)
 
