@@ -5,7 +5,7 @@ from pathlib import Path
 
 from crew import __version__
 
-GITIGNORE_ENTRY = ".crew/state.json"
+GITIGNORE_ENTRIES = (".crew/state.json", ".crew/run.json")
 
 # Target path in the project -> template path inside the crew package.
 TEMPLATES = {
@@ -29,8 +29,8 @@ def read_template(name: str) -> str:
 def init_project(root: Path, repo: str, owner: str, agent: str) -> list[Path]:
     """Write the missing crew files under ``root`` and return the paths written.
 
-    Existing files are left byte-identical; ``.gitignore`` only gets the state file
-    entry appended when it lacks it.
+    Existing files are left byte-identical; ``.gitignore`` only gets the local state
+    entries appended when it lacks them.
     """
     written: list[Path] = []
     for target, template in TEMPLATES.items():
@@ -51,9 +51,11 @@ def init_project(root: Path, repo: str, owner: str, agent: str) -> list[Path]:
 
 def _ensure_gitignore(path: Path) -> bool:
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    if GITIGNORE_ENTRY in (line.strip() for line in text.splitlines()):
+    present = {line.strip() for line in text.splitlines()}
+    missing = [entry for entry in GITIGNORE_ENTRIES if entry not in present]
+    if not missing:
         return False
     if text and not text.endswith("\n"):
         text += "\n"
-    path.write_text(text + GITIGNORE_ENTRY + "\n", encoding="utf-8")
+    path.write_text(text + "".join(f"{entry}\n" for entry in missing), encoding="utf-8")
     return True

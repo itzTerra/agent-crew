@@ -7,6 +7,7 @@ Document or ready findings exit 1; success exits 0.
 import argparse
 import os
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,6 +18,9 @@ from crew.docs.markdown import DocumentReadError
 from crew.findings import Finding, has_errors
 from crew.github import GitHub, GitHubError
 from crew.owns import OwnsError
+from crew.supervisor.herdr import Herdr, HerdrError
+from crew.supervisor.loop import RunError
+from crew.supervisor.worktrees import WorktreeError
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -121,6 +125,16 @@ def build_parser() -> argparse.ArgumentParser:
     budget.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     budget.set_defaults(handler=_cmd_budget)
 
+    run = commands.add_parser("run", help="keep crew agents busy in herdr until an end time")
+    run.add_argument("--until", required=True, metavar="WHEN", help="end time (ISO 8601)")
+    run.add_argument("--cap", type=int, metavar="N", help="weekly budget cap for this run, in %%")
+    run.add_argument(
+        "--dry-run", action="store_true", help="show what each tick would do; change nothing"
+    )
+    run.add_argument("--once", action="store_true", help="run a single tick")
+    run.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    run.set_defaults(handler=_cmd_run)
+
     usage = commands.add_parser("usage", help="show the latest weekly usage reading")
     usage_commands = usage.add_subparsers(dest="usage_command", metavar="<action>")
     record = usage_commands.add_parser(
@@ -134,6 +148,21 @@ def build_parser() -> argparse.ArgumentParser:
 def make_github(repo: str) -> GitHub:
     """Build the GitHub client; a seam for tests."""
     return GitHub(repo)
+
+
+def make_herdr() -> Herdr:
+    """Build the herdr driver; a seam for tests."""
+    return Herdr()
+
+
+def run_clock() -> datetime:
+    """The run's clock; a seam for tests."""
+    return datetime.now(UTC)
+
+
+def run_sleep(seconds: float) -> None:
+    """The run's sleep; a seam for tests."""
+    time.sleep(seconds)
 
 
 def _cmd_labels_sync(args: argparse.Namespace) -> int:
@@ -407,6 +436,40 @@ def _write_state(root: Path, state: dict) -> None:
         raise CliError(f"cannot write .crew/state.json: {exc.strerror}") from None
 
 
+def _parse_until(text: str, now: datetime) -> datetime:
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        raise CliError(f"--until {text!r} is not an ISO 8601 time") from None
+    moment = moment if moment.tzinfo else moment.astimezone()
+    if moment <= now:
+        raise CliError(f"--until {text} is not in the future")
+    return moment
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    from crew.config import BUDGET_MAX, BUDGET_MIN
+    from crew.supervisor.loop import Supervisor
+
+    config = load_config(args.root)
+    if args.cap is not None and not BUDGET_MIN <= args.cap <= BUDGET_MAX:
+        raise CliError(f"--cap must be {BUDGET_MIN}–{BUDGET_MAX}, got {args.cap}")
+    clock, sleep = run_clock, run_sleep
+    until = _parse_until(args.until, clock())
+    supervisor = Supervisor(
+        args.root,
+        config,
+        make_github(config.repo),
+        make_herdr(),
+        until=until,
+        cap=args.cap,
+        dry_run=args.dry_run,
+        clock=lambda: clock(),
+        sleep=lambda seconds: sleep(seconds),
+    )
+    return supervisor.run(once=args.once)
+
+
 def _cmd_usage(args: argparse.Namespace) -> int:
     from crew.usage import read_usage, usage_line, usage_path
 
@@ -436,7 +499,17 @@ def main(argv: list[str] | None = None) -> int:
         return handler(args)
     except SystemExit as exc:
         return int(exc.code or 0)
-    except (AgentError, CliError, ConfigError, GitHubError, DocumentReadError, OwnsError) as exc:
+    except (
+        AgentError,
+        CliError,
+        ConfigError,
+        GitHubError,
+        DocumentReadError,
+        OwnsError,
+        RunError,
+        HerdrError,
+        WorktreeError,
+    ) as exc:
         print(f"crew: error: {exc}", file=sys.stderr)
     except OSError as exc:
         where = f" ({exc.filename})" if exc.filename else ""

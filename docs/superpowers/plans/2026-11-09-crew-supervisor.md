@@ -833,7 +833,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   `RunError("a run is already active (pid N)")`. Otherwise adopt the agents in `run.json` whose panes
   still have an agent, and drop the rest.
 
-- [ ] **Step 1: Write the failing tests** with fake `GitHub`, `Herdr`, clock, sleep and worktree:
+- [x] **Step 1: Write the failing tests** with fake `GitHub`, `Herdr`, clock, sleep and worktree:
   - `test_tick_starts_planned_agents_with_crew_agent_command`: the exact `run_command` string for an
     implement action (`--auto`, `--root <worktree>`, the prompt last).
   - `test_finished_agent_pane_closed`.
@@ -851,11 +851,11 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   - `test_dry_run_changes_nothing`.
   - `test_ends_when_idle_and_no_agents`.
   - `test_init_ignores_run_file`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement. Tick errors from `GitHubError` are logged and retried at the next tick.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement. Tick errors from `GitHubError` are logged and retried at the next tick.
   Three in a row end the run with that error. Other errors end the run.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: add crew run, which keeps agents busy in herdr`.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: add crew run, which keeps agents busy in herdr`.
 
 ### Task 16: Stopping — end time, cap, 5-hour window, wind-down
 

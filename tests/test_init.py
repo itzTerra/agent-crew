@@ -44,6 +44,7 @@ def test_init_appends_to_existing_gitignore(tmp_path):
     assert (tmp_path / ".gitignore").read_text().splitlines() == [
         "node_modules/",
         ".crew/state.json",
+        ".crew/run.json",
     ]
 
 
@@ -70,3 +71,13 @@ def test_init_prints_plugin_step(tmp_path, monkeypatch, capsys):
     assert main([*argv, "--root", str(tmp_path / "p")]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert lines[-1] == f"next: install the Claude Code plugin: {PLUGIN_INSTALL}"
+
+
+def test_init_ignores_run_file(tmp_path):
+    (tmp_path / ".gitignore").write_text(".crew/state.json\n", encoding="utf-8")
+    written = init_project(tmp_path, "example/app", "owner-a", "agent-b")
+    assert tmp_path / ".gitignore" in written
+    assert (tmp_path / ".gitignore").read_text().splitlines() == [
+        ".crew/state.json",
+        ".crew/run.json",
+    ]
