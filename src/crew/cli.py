@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 
 from crew import __version__
-from crew.config import ConfigError
+from crew.config import ConfigError, load_config
+from crew.findings import Finding, has_errors
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -31,7 +32,26 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--agent", required=True, help="the agents' GitHub login")
     init.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     init.set_defaults(handler=_cmd_init)
+
+    docs = commands.add_parser("check-docs", help="check requirements, specs, ADRs and pitches")
+    docs.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    docs.add_argument("--strict", action="store_true", help="treat uncited requirements as errors")
+    docs.set_defaults(handler=_cmd_check_docs)
     return parser
+
+
+def _report(findings: list[Finding], root: Path) -> int:
+    """Print findings and return the exit code: 1 if any is an error, else 0."""
+    for finding in findings:
+        print(finding.format(root))
+    return EXIT_FINDINGS if has_errors(findings) else EXIT_OK
+
+
+def _cmd_check_docs(args: argparse.Namespace) -> int:
+    from crew.docs.check import check_docs
+
+    config = load_config(args.root)
+    return _report(check_docs(args.root, config, strict=args.strict), args.root)
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
