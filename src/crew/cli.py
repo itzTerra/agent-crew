@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from crew import __version__
+from crew.agent import AgentError
 from crew.config import ConfigError, load_config
 from crew.docs.markdown import DocumentReadError
 from crew.findings import Finding, has_errors
@@ -82,6 +83,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     next_.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     next_.set_defaults(handler=_cmd_next)
+
+    agent = commands.add_parser("agent", help="start an agent session as the agents' GitHub login")
+    agent.add_argument("role", help="lead, architect, designer, implementer or reviewer")
+    agent.add_argument("prompt", nargs="?", help="the first message for the agent")
+    agent.add_argument("--model", help="override the agent's model")
+    agent.add_argument(
+        "--check", action="store_true", help="print the identity the agent would use; start nothing"
+    )
+    agent.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    agent.set_defaults(handler=_cmd_agent)
     return parser
 
 
@@ -212,6 +223,14 @@ def _cmd_next(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_agent(args: argparse.Namespace) -> int:
+    from crew.agent import run_agent
+
+    config = load_config(args.root)
+    run_agent(args.role, args.prompt, args.model, config.agent_login, args.check)
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     try:
@@ -223,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
         return handler(args)
     except SystemExit as exc:
         return int(exc.code or 0)
-    except (CliError, ConfigError, GitHubError, DocumentReadError) as exc:
+    except (AgentError, CliError, ConfigError, GitHubError, DocumentReadError) as exc:
         print(f"crew: error: {exc}", file=sys.stderr)
     except OSError as exc:
         where = f" ({exc.filename})" if exc.filename else ""

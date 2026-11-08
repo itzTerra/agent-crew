@@ -57,7 +57,7 @@ crew labels sync
 `crew labels sync` creates or updates the `crew:` labels on GitHub. Run it again after upgrading.
 
 `crew-docs.yml` installs the CLI from this repo at the tag of the version that wrote it
-(`@v0.1.0`), so a change here can't break a project's CI. To upgrade, edit the tag.
+(`@v0.2.0`), so a change here can't break a project's CI. To upgrade, edit the tag.
 
 ### Settings
 
@@ -94,11 +94,21 @@ Every command takes `--root PATH` (default: the current directory). Exit codes: 
 
 ## Running the crew by hand
 
-**Agents work under their own GitHub login** (`agent_login`), not yours. Run their sessions with
-that account's `gh` auth, for example `GH_TOKEN=<agents' token> claude --agent …`, or a separate
-`gh auth login` in their shell. Under your account, PRs the agents open are yours, so you can't
-approve them (GitHub forbids approving your own PR) and owner-facing units can never be merged;
-it also makes your input and the agents' indistinguishable.
+**Agents work under their own GitHub login** (`agent_login`), not yours. Under your account, PRs
+the agents open are yours, so you can't approve them (GitHub forbids approving your own PR) and
+owner-facing units can never be merged; it also makes your input and the agents' indistinguishable.
+
+`crew agent <role>` starts an agent session under that login:
+
+1. Store the agents' token at `~/.config/crew/agent-token` with mode 600, or point
+   `CREW_AGENT_TOKEN_FILE` at it.
+2. Run `crew agent lead --check` once. It prints the GitHub login, the git name and email the
+   agents will use, and how they push, and starts nothing; the token itself is never printed.
+
+`crew agent` checks that the token belongs to `agent_login` and refuses to start otherwise; it
+never falls back to your `gh` login. The session gets the token only through `GH_TOKEN`, commits
+as the agents' noreply address, and pushes over HTTPS with gh's credential helper: your stored git
+credentials are not used, and `git@github.com:` remotes are rewritten to HTTPS for the session.
 
 Automated runs come in a later version. Until then you start the agents yourself, for example in
 herdr panes, one per agent.
@@ -106,7 +116,7 @@ herdr panes, one per agent.
 **Your session**, with the lead:
 
 ```sh
-claude --agent crew:lead
+crew agent lead
 ```
 
 Then ask for the inbox (`crew:inbox`), pitch an idea (`crew:pitch`), or run the kickoff once per
@@ -116,14 +126,14 @@ for you (`crew:relay`).
 **Workers**, each in its own pane:
 
 ```sh
-claude --agent crew:architect "Use crew:refine on the top rough units"
-claude --agent crew:implementer "Use crew:implement on issue #12"
-claude --agent crew:reviewer "Use crew:review on PR #14"
+crew agent architect "Use crew:refine on the top rough units"
+crew agent implementer "Use crew:implement on issue #12"
+crew agent reviewer "Use crew:review on PR #14"
 ```
 
 `crew next` tells you which issues to start, without two workers touching the same paths. Each
 agent's model is set in its definition (Opus for lead, architect and reviewer; Sonnet for
-designer and implementer); pass `--model sonnet` to review an internal unit more cheaply.
+designer and implementer); pass `--model sonnet` (`crew agent reviewer --model sonnet "…"`) to review an internal unit more cheaply.
 
 ## Development
 
