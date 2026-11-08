@@ -10,6 +10,7 @@ from crew.findings import Finding
 REQ_ID = re.compile(r"^REQ-[A-Z][A-Z0-9]*-\d+$")
 PRIORITIES = ("Must", "Should", "Later")
 PRIORITY_COLUMNS = ("pri", "priority")
+WHY_COLUMN = "why"
 _SEPARATOR = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$")
 _COVERED = re.compile(r"\[covered:\s*[^\]]+\]", re.IGNORECASE)
 
@@ -31,11 +32,14 @@ def parse_requirements(path: Path) -> tuple[list[Requirement], list[Finding]]:
     requirements: list[Requirement] = []
     findings: list[Finding] = []
     pri_column: int | None = None
+    # The current table's header line, while its missing Why column is still unreported.
+    no_why_header: int | None = None
 
     for index, line in enumerate(lines):
         number = index + 1
         if not line.lstrip().startswith("|"):
             pri_column = None
+            no_why_header = None
             continue
         if _SEPARATOR.match(line.strip()):
             continue
@@ -44,6 +48,7 @@ def parse_requirements(path: Path) -> tuple[list[Requirement], list[Finding]]:
         if _SEPARATOR.match(following):
             headers = [c.lower() for c in cells]
             pri_column = next((i for i, h in enumerate(headers) if h in PRIORITY_COLUMNS), None)
+            no_why_header = None if WHY_COLUMN in headers else number
             continue
         first = cells[0].strip("`*_ ") if cells else ""
         if not first.upper().startswith("REQ-"):
@@ -51,6 +56,11 @@ def parse_requirements(path: Path) -> tuple[list[Requirement], list[Finding]]:
         if not REQ_ID.match(first):
             findings.append(Finding(path, number, "REQ-ID", f"malformed requirement ID `{first}`"))
             continue
+        if no_why_header is not None:
+            findings.append(
+                Finding(path, no_why_header, "REQ-WHY", "requirements table has no Why column")
+            )
+            no_why_header = None
         priority = None
         if pri_column is not None:
             priority = cells[pri_column].strip("`*_ ") if pri_column < len(cells) else ""

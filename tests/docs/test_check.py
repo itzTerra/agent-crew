@@ -43,7 +43,7 @@ def test_unknown_satisfies_id(project):
 def test_duplicate_req_across_files(project):
     other = project / "docs/requirements/extra.md"
     other.write_text(
-        "| ID | Pri | Requirement |\n|---|---|---|\n| REQ-ARCH-1 | Must | Again. |\n",
+        "| ID | Pri | Requirement | Why |\n|---|---|---|---|\n| REQ-ARCH-1 | Must | Again. |\n",
         encoding="utf-8",
     )
     findings = check_docs(project, load_config(project))

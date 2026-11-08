@@ -186,16 +186,16 @@ task here.
 - Produces: finding code `REQ-WHY` (error), one per table, at the table's header line, message
   `requirements table has no Why column`. A table counts when at least one of its rows is a requirement.
 
-- [ ] **Step 1: Write the failing test** `test_table_without_why`: parsing `requirements-mixed.md` gives
+- [x] **Step 1: Write the failing test** `test_table_without_why`: parsing `requirements-mixed.md` gives
   exactly two `REQ-WHY` findings, at the header lines of the `AREA DOC` and `AREA LATER` tables, and
   still 12 requirements. Change `test_mixed_requirements_parse` to assert that the only findings are
   those two.
-- [ ] **Step 2:** Run `uv run pytest tests/docs -v`. Expected: FAIL.
-- [ ] **Step 3:** Implement. When the header is read, remember whether a `why` column exists and the
+- [x] **Step 2:** Run `uv run pytest tests/docs -v`. Expected: FAIL.
+- [x] **Step 3:** Implement. When the header is read, remember whether a `why` column exists and the
   header line. Emit the finding when the table's first requirement row is seen.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS. Fix any other fixture under
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS. Fix any other fixture under
   `tests/fixtures/project/` that now fails `test_fixture_project_clean` by adding a Why column to it.
-- [ ] **Step 5:** Commit `feat: flag requirements tables without a Why column`.
+- [x] **Step 5:** Commit `feat: flag requirements tables without a Why column`.
 
 ### Task 4: `crew next` says why each ready unit is left out (R9)
 
