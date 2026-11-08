@@ -14,6 +14,7 @@ from tests.supervisor.fakes import (
     START,
     Clock,
     FakeGitHub,
+    FakeGitRun,
     FakeHerdr,
     FakeWorktree,
     ready,
@@ -41,7 +42,7 @@ def make(root, tmp_path, github, herdr=None, clock=None, fresh=True, dry_run=Fal
         root, load_config(root), github, herdr or FakeHerdr(),
         until=until or START + timedelta(hours=10), cap=None, dry_run=dry_run,
         clock=clock, sleep=clock.sleep, out=out.append,
-        worktree=FakeWorktree(tmp_path / "wt"), usage_file=usage_file,
+        worktree=FakeWorktree(tmp_path / "wt"), usage_file=usage_file, git_run=FakeGitRun(),
     )  # fmt: skip
     supervisor.log = out
     return supervisor
@@ -126,7 +127,7 @@ def test_gone_agent_dropped(root, tmp_path):
     github.relabel(7, "crew:in-progress")
     herdr.statuses[herdr.tabs[0][0]] = None
     supervisor.tick()
-    assert supervisor.agents == []
+    assert [(a.kind, a.number) for a in supervisor.agents] == [("resume", 7)]
     assert any("gone" in line for line in supervisor.log)
 
 
@@ -238,3 +239,351 @@ def test_github_errors_retried_then_fatal(root, tmp_path):
     with pytest.raises(RunError, match="offline"):
         supervisor.run()
     assert Flaky.calls == 3
+
+
+# --- stopping (Task 16) ---------------------------------------------------------------------
+
+from crew.supervisor.until import CONTINUE, FIVE_HOUR_FULL, RESET_SLACK, WIND_DOWN  # noqa: E402
+
+
+def test_ends_at_until(root, tmp_path):
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    supervisor = make(root, tmp_path, github, clock=clock, until=START + timedelta(minutes=5))
+    supervisor.run()
+    assert any("end time reached" in line for line in supervisor.log)
+
+
+def test_ends_at_cap_with_cli_cap_override(root, tmp_path):
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock)
+    write_usage(tmp_path / "usage.json", clock(), week=80)
+    assert supervisor.tick() == "budget cap reached (80% of 75%)"
+    assert herdr.tabs == []
+    supervisor.cap = 90
+    assert supervisor.tick() is None
+    assert len(herdr.tabs) == 1
+    write_usage(tmp_path / "usage.json", clock(), week=91)
+    assert supervisor.tick() == "budget cap reached (91% of 90%)"
+
+
+def test_waits_out_five_hour_window_then_continues(root, tmp_path):
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/"), ready(8, "b/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock)
+    supervisor.tick()
+    pane, started = herdr.tabs[0][0], len(herdr.tabs)
+    github.relabel(7, "crew:in-progress")
+    github.relabel(8, "crew:in-progress")
+    reset = clock() + timedelta(minutes=10)
+    write_usage(tmp_path / "usage.json", clock(), five=FIVE_HOUR_FULL, five_reset=reset)
+    herdr.statuses[pane] = "idle"
+    assert supervisor.tick() is None
+    assert supervisor.agents[0].limited and herdr.prompts == []
+    assert len(herdr.tabs) == started  # nothing new starts while the window is full
+    poll = supervisor.config.poll_seconds
+    assert supervisor.next_sleep == min(poll, (reset + RESET_SLACK - clock()).total_seconds())
+    clock.now = reset + RESET_SLACK - timedelta(seconds=30)
+    assert supervisor.tick() is None and herdr.prompts == []
+    assert supervisor.next_sleep == 30
+    clock.now = reset + RESET_SLACK + timedelta(seconds=1)
+    assert supervisor.tick() is None
+    assert herdr.prompts == [(pane, CONTINUE)]
+    assert not supervisor.agents[0].limited
+    herdr.statuses[pane] = "working"
+    supervisor.tick()
+    assert herdr.prompts == [(pane, CONTINUE)]
+
+
+def test_wind_down_pushes_and_pauses(root, tmp_path):
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock,
+                      until=START + timedelta(hours=2))  # fmt: skip
+    supervisor.tick()
+    pane = herdr.tabs[0][0]
+    github.relabel(7, "crew:in-progress")
+    clock.now = START + timedelta(hours=2)
+    original_prompt = herdr.prompt
+
+    def prompt_then_finish(target, text):
+        original_prompt(target, text)
+        herdr.statuses[target] = "working"
+        herdr.finish_at = clock() + timedelta(minutes=3)
+
+    herdr.prompt = prompt_then_finish
+    original_status = herdr.status
+    herdr.status = lambda target: (
+        "idle" if getattr(herdr, "finish_at", None) and clock() >= herdr.finish_at
+        else original_status(target)
+    )  # fmt: skip
+    assert supervisor.run() == 0
+    assert herdr.prompts == [(pane, WIND_DOWN)]
+    assert pane in herdr.closed
+    run = json.loads((root / RUN_PATH).read_text())
+    assert "pid" not in run and "agents" not in run
+    assert run["paused"] == [{"number": 7, "branch": "unit/7-unit-7"}]
+    text = "\n".join(supervisor.log)
+    assert "end time reached" in text and "Paused" in text
+    assert "https://github.com/example/app/issues/7" in text
+
+
+def test_wind_down_gives_up_after_grace(root, tmp_path):
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock,
+                      until=START + timedelta(hours=2))  # fmt: skip
+    supervisor.tick()
+    clock.now = START + timedelta(hours=2)
+    supervisor.run()  # the agent keeps working
+    grace = timedelta(minutes=supervisor.config.stop_grace_minutes)
+    assert clock() - (START + timedelta(hours=2)) <= grace + timedelta(minutes=1)
+    assert herdr.tabs[0][0] in herdr.closed
+
+
+def test_next_run_resumes_paused_unit(root, tmp_path):
+    github = FakeGitHub([ready(7, "a/", labels=("crew:in-progress",))])
+    (root / RUN_PATH).write_text(json.dumps({"paused": [{"number": 7, "branch": "unit/7-x"}]}))
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.run(once=True)
+    assert [t[2] for t in herdr.tabs] == ["resume #7"]
+    assert "resume the work pushed on branch unit/7-x" in herdr.commands[0][1]
+    run = json.loads((root / RUN_PATH).read_text())
+    assert run["paused"] == []
+
+
+def test_bad_until_is_clean_error(root, capsys):
+    for bad in ("25:00", "2020-01-01T07:00"):
+        assert main(["run", "--until", bad, "--root", str(root)]) == 2
+        err = capsys.readouterr().err
+        assert err.startswith("crew: error: ") and err.count("\n") == 1 and bad in err
+
+
+# --- final review fixes ---------------------------------------------------------------------
+
+from crew.supervisor.snapshot import MARKER  # noqa: E402
+from tests.supervisor.test_planner import owner_comment, pr  # noqa: E402
+
+
+def test_supervisor_comments_never_count_as_owner_feedback(root, tmp_path):
+    # C1: crew run comments with the owner's gh login; its stuck comment must not loop.
+    github = FakeGitHub(
+        [issue(5, labels=["crew:changes-requested"], owns=["a/"])],
+        [pr(9, 5, ["crew:changes-requested"])],
+    )
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    pane = herdr.tabs[0][0]
+    herdr.statuses[pane] = "idle"
+    supervisor.tick()
+    supervisor.tick()  # stuck: comment + owner-stuck
+    ((number, body),) = github.comments
+    assert MARKER in body
+    github.prs[9]["comments"].append(
+        {"author": {"login": supervisor.config.owner_login}, "body": body,
+         "createdAt": "2026-11-10T00:00:00Z"}
+    )  # fmt: skip
+    tabs = len(herdr.tabs)
+    supervisor.tick()
+    assert len(herdr.tabs) == tabs and len(github.comments) == 1
+    assert {label["name"] for label in github.prs[9]["labels"]} == {"crew:owner-stuck"}
+
+
+def test_ci_failure_comment_carries_marker(root, tmp_path):
+    github = FakeGitHub(
+        [issue(5, labels=["crew:in-review"], owns=["a/"])], [pr(9, 5, ["crew:in-review"], "fail")]
+    )
+    make(root, tmp_path, github).tick()
+    ((number, body),) = github.comments
+    assert number == 9 and body.startswith("CI failed: test. (crew run)") and MARKER in body
+
+
+def test_followup_on_decision_pr_finishes_when_answered(root, tmp_path):
+    # I1
+    github = FakeGitHub(
+        [issue(5, labels=["crew:owner-accept"], owns=["a/"])],
+        [pr(9, 5, ["crew:owner-accept", "crew:owner-decision"], comments=[owner_comment()])],
+    )
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    assert [t[2] for t in herdr.tabs] == ["followup #9"]
+    github.prs[9]["comments"].append(
+        {"author": {"login": supervisor.config.agent_login}, "body": "ADR written",
+         "createdAt": "2026-11-10T00:00:00Z"}
+    )  # fmt: skip
+    herdr.statuses[herdr.tabs[0][0]] = "idle"
+    supervisor.tick()
+    assert supervisor.agents == [] and herdr.prompts == [] and github.comments == []
+
+
+def test_gone_implementer_is_paused(root, tmp_path):
+    # I2: in a tick, and when a restart finds the pane gone.
+    github = FakeGitHub([ready(7, "a/"), ready(8, "b/", labels=("crew:in-progress",))])
+    herdr = FakeHerdr()
+    gone = AgentRecord("w1:p8", "implement", 8, None, "implementer", "unit/8-unit-8",
+                       ["working"], START.isoformat())  # fmt: skip
+    (root / RUN_PATH).write_text(json.dumps({"agents": [gone.__dict__], "paused": []}))
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor._adopt()
+    assert supervisor.paused == [{"number": 8, "branch": "unit/8-unit-8"}]
+    supervisor.tick()
+    pane = next(p for p, _, label in herdr.tabs if label == "implement #7")
+    github.relabel(7, "crew:in-progress")
+    herdr.statuses[pane] = None
+    supervisor.tick()
+    assert "resume #7" in [label for _, _, label in herdr.tabs]  # paused, then resumed
+
+
+def test_interrupt_while_starting_winds_that_agent_down(root, tmp_path):
+    # I3
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr(never_starts=True)
+    supervisor = make(root, tmp_path, github, herdr)
+
+    def interrupt(seconds):
+        raise KeyboardInterrupt
+
+    supervisor.sleep = interrupt
+    supervisor.run()
+    assert herdr.closed == ["w1:p1"]
+    assert "agents" not in json.loads((root / RUN_PATH).read_text())
+
+
+def test_second_ctrl_c_during_wind_down_still_closes_and_pauses(root, tmp_path):
+    # I4
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock,
+                      until=START + timedelta(hours=2))  # fmt: skip
+    supervisor.tick()
+    github.relabel(7, "crew:in-progress")
+    clock.now = START + timedelta(hours=2)
+
+    def interrupt(seconds):
+        raise KeyboardInterrupt
+
+    supervisor.sleep = interrupt
+    supervisor.run()
+    assert herdr.tabs[0][0] in herdr.closed
+    run = json.loads((root / RUN_PATH).read_text())
+    assert run["paused"] == [{"number": 7, "branch": "unit/7-unit-7"}]
+
+
+def test_wind_down_waits_for_push(root, tmp_path):
+    # I5: an agent that looks stopped but hasn't pushed keeps its pane.
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock,
+                      until=START + timedelta(hours=2))  # fmt: skip
+    supervisor.tick()
+    pane, cwd = herdr.tabs[0][0], str(herdr.tabs[0][1])
+    supervisor.git_run.unpushed.add(cwd)
+    herdr.statuses[pane] = "idle"
+    clock.now = START + timedelta(hours=2)
+    pushed_at = clock() + timedelta(minutes=5)
+
+    def sleep(seconds):
+        clock.sleep(seconds)
+        if clock() >= pushed_at:
+            supervisor.git_run.unpushed.discard(cwd)
+        if pane in herdr.closed:
+            raise AssertionError("closed before the push")
+
+    supervisor.sleep = sleep
+    supervisor.run()
+    assert pane in herdr.closed
+    assert clock() >= pushed_at
+    assert herdr.prompts == [(pane, WIND_DOWN)]
+
+
+def test_stale_workspace_replaced(root, tmp_path):
+    # I6
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    herdr.stale_workspaces = {"w1"}
+    herdr.next_workspace = "w2"
+    (root / RUN_PATH).write_text(json.dumps({"workspace": "w1", "paused": []}))
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.run(once=True)
+    assert [t[0] for t in herdr.tabs] == ["w2:p1"]
+    assert supervisor.workspace == "w2"
+
+
+def test_agent_tabs_get_run_environment(root, tmp_path, monkeypatch):
+    # I7: herdr panes don't inherit crew run's environment.
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/x/.claude-work")
+    monkeypatch.setenv("CREW_AGENT_TOKEN_FILE", "/x/token")
+    monkeypatch.setenv("CLAUDECODE", "1")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
+    monkeypatch.setenv("GH_TOKEN", "owner-secret")
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    (env,) = herdr.tab_env
+    assert env["CLAUDE_CONFIG_DIR"] == "/x/.claude-work"
+    assert env["CREW_AGENT_TOKEN_FILE"] == "/x/token"
+    assert env["CREW_USAGE_FILE"] == str(tmp_path / "usage.json")
+    assert not {"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "GH_TOKEN"} & set(env)
+
+
+def test_blocked_agent_never_prompted(root, tmp_path):
+    # I8: typing into a dialog could approve what auto mode stopped to ask.
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    herdr.output = "Do you want to proceed?\n> 1. Yes\n  2. No\n"
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    pane = herdr.tabs[0][0]
+    github.relabel(7, "crew:in-progress")
+    herdr.statuses[pane] = "blocked"
+    supervisor.tick()
+    assert herdr.prompts == []
+    ((number, body),) = github.comments
+    assert number == 7 and "dialog" in body and "Do you want to proceed?" in body
+    assert pane in herdr.closed
+
+
+def test_limit_message_in_pane_waits_instead_of_nudging(root, tmp_path):
+    # I9: the last reading may be below 98% when the limit hits.
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr, clock=clock)
+    reset = clock() + timedelta(minutes=40)
+    write_usage(tmp_path / "usage.json", clock(), five=93, five_reset=reset)
+    supervisor.tick()
+    pane = herdr.tabs[0][0]
+    github.relabel(7, "crew:in-progress")
+    herdr.statuses[pane] = "idle"
+    herdr.output = "working...\nYou've hit your usage limit · resets 9pm\n"
+    for _ in range(3):
+        supervisor.tick()
+    assert herdr.prompts == [] and github.comments == []
+    assert supervisor.agents[0].limited
+    clock.now = reset + timedelta(minutes=3)
+    write_usage(tmp_path / "usage.json", clock(), five=1)
+    supervisor.tick()
+    assert herdr.prompts == [(pane, CONTINUE)]
+
+
+def test_unit_marked_stuck_is_not_restarted_in_the_same_tick(root, tmp_path):
+    # Smoke test: the tick's snapshot predates the stuck label, so #7 still looked ready.
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    herdr.statuses[herdr.tabs[0][0]] = "blocked"  # e.g. the folder-trust dialog
+    supervisor.tick()
+    assert len(github.comments) == 1
+    assert [label for _, _, label in herdr.tabs] == ["implement #7"]

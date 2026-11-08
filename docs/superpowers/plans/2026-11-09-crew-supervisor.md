@@ -899,7 +899,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
 
   Exit 0 for a normal end, 2 for `RunError`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_parse_until_rolls_forward` (Review Focus 4): at 08:00 `"07:00"` gives 07:00 tomorrow; on a Monday at 15:00 `"Mon 07:00"`
     gives next Monday; a past ISO time raises `ValueError`; `"25:00"` raises.
   - `test_ends_at_until`, `test_ends_at_cap_with_cli_cap_override`.
@@ -909,10 +909,10 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
     unit is in `paused`.
   - `test_next_run_resumes_paused_unit` (with the planner from Task 13).
   - `test_bad_until_is_clean_error`: CLI exit 2, one line.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: stop runs at the end time or budget cap and wait out usage resets`.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: stop runs at the end time or budget cap and wait out usage resets`.
 
 ### Task 17: Run and budget skills, docs, release
 

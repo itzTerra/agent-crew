@@ -67,13 +67,21 @@ class FakeHerdr:
         self.tabs: list[tuple[str, Path, str]] = []
         self.workspaces = 0
         self.output = "line one\nlast words of the agent\n"
+        self.tab_env: list[dict] = []
+        self.stale_workspaces: set[str] = set()
+        self.next_workspace = "w1"
 
     def create_workspace(self, cwd, label):
         self.workspaces += 1
-        return "w1"
+        return self.next_workspace
 
-    def open_tab(self, workspace, cwd, label):
-        pane = f"w1:p{len(self.tabs) + 1}"
+    def open_tab(self, workspace, cwd, label, env=None):
+        if workspace in self.stale_workspaces:
+            from crew.supervisor.herdr import HerdrError
+
+            raise HerdrError(f"herdr tab create failed: workspace {workspace} not found")
+        self.tab_env.append(dict(env or {}))
+        pane = f"{workspace}:p{len(self.tabs) + 1}"
         self.tabs.append((pane, cwd, label))
         self.statuses[pane] = None if self.never_starts else "working"
         return pane
@@ -134,3 +142,24 @@ def write_usage(path: Path, at: datetime, week=10, five=5, five_reset=None):
         }
     }
     record_statusline(json.dumps(data), path, at)
+
+
+class FakeGitRun:
+    """``subprocess.run`` for the wind-down's pushed check: clean and pushed unless told."""
+
+    def __init__(self):
+        self.unpushed: set[str] = set()  # worktree paths with work not pushed yet
+        self.calls = []
+
+    def __call__(self, argv, **kwargs):
+        import subprocess
+
+        self.calls.append(argv)
+        path = argv[2]
+        if "status" in argv:
+            out = " M file.py\n" if path in self.unpushed else ""
+            return subprocess.CompletedProcess(argv, 0, out, "")
+        if "rev-parse" in argv:
+            out = "aaa\nbbb\n" if path in self.unpushed else "aaa\naaa\n"
+            return subprocess.CompletedProcess(argv, 0, out, "")
+        return subprocess.CompletedProcess(argv, 0, "", "")

@@ -126,7 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     budget.set_defaults(handler=_cmd_budget)
 
     run = commands.add_parser("run", help="keep crew agents busy in herdr until an end time")
-    run.add_argument("--until", required=True, metavar="WHEN", help="end time (ISO 8601)")
+    run.add_argument(
+        "--until", required=True, metavar="WHEN", help="end time: 07:00, Mon 07:00 or ISO 8601"
+    )
     run.add_argument("--cap", type=int, metavar="N", help="weekly budget cap for this run, in %%")
     run.add_argument(
         "--dry-run", action="store_true", help="show what each tick would do; change nothing"
@@ -436,26 +438,19 @@ def _write_state(root: Path, state: dict) -> None:
         raise CliError(f"cannot write .crew/state.json: {exc.strerror}") from None
 
 
-def _parse_until(text: str, now: datetime) -> datetime:
-    try:
-        moment = datetime.fromisoformat(text)
-    except ValueError:
-        raise CliError(f"--until {text!r} is not an ISO 8601 time") from None
-    moment = moment if moment.tzinfo else moment.astimezone()
-    if moment <= now:
-        raise CliError(f"--until {text} is not in the future")
-    return moment
-
-
 def _cmd_run(args: argparse.Namespace) -> int:
     from crew.config import BUDGET_MAX, BUDGET_MIN
     from crew.supervisor.loop import Supervisor
+    from crew.supervisor.until import parse_until
 
     config = load_config(args.root)
     if args.cap is not None and not BUDGET_MIN <= args.cap <= BUDGET_MAX:
         raise CliError(f"--cap must be {BUDGET_MIN}–{BUDGET_MAX}, got {args.cap}")
     clock, sleep = run_clock, run_sleep
-    until = _parse_until(args.until, clock())
+    try:
+        until = parse_until(args.until, clock())
+    except ValueError as exc:
+        raise CliError(f"--until: {exc}") from None
     supervisor = Supervisor(
         args.root,
         config,
