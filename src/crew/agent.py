@@ -17,6 +17,10 @@ TOKEN_FILE_ENV = "CREW_AGENT_TOKEN_FILE"
 DEFAULT_TOKEN_FILE = "~/.config/crew/agent-token"
 GITHUB_HTTPS = "https://github.com"
 CHECK_PUSH_LINE = "push: https via gh (ssh rewritten)"
+# Inherited variables that would make gh or other tools act for another account or host.
+CLEARED_VARS = ("GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_HOST")
+# Every ssh transport refuses, so no URL form, alias or pushInsteadOf can reach the owner's key.
+SSH_REFUSED = "sh -c 'echo \"crew: ssh disabled for agent sessions; push over https\" >&2; exit 1'"
 
 # Seams for tests: how ``gh`` is run and how the session replaces this process.
 RUN = subprocess.run
@@ -100,12 +104,14 @@ def agent_env(base: Mapping[str, str], token: str, login: str, user_id: int) -> 
     Returns:
         A new environment mapping.
     """
-    env = dict(base)
+    env = _without_cleared(base)
     env["GH_TOKEN"] = token
+    env["GIT_SSH_COMMAND"] = SSH_REFUSED
     settings = [
         ("user.name", login),
         ("user.email", noreply_email(login, user_id)),
         (f"url.{GITHUB_HTTPS}/.insteadOf", "git@github.com:"),
+        (f"url.{GITHUB_HTTPS}/.insteadOf", "ssh://git@github.com/"),
         # The empty value resets the helper list, so the owner's stored credentials
         # (e.g. a global credential.helper=store) never answer an agent's push.
         (f"credential.{GITHUB_HTTPS}.helper", ""),
@@ -117,6 +123,10 @@ def agent_env(base: Mapping[str, str], token: str, login: str, user_id: int) -> 
         env[f"GIT_CONFIG_VALUE_{start + offset}"] = value
     env["GIT_CONFIG_COUNT"] = str(start + len(settings))
     return env
+
+
+def _without_cleared(base: Mapping[str, str]) -> dict[str, str]:
+    return {key: value for key, value in base.items() if key not in CLEARED_VARS}
 
 
 def agent_argv(role: str, prompt: str | None, model: str | None) -> list[str]:
@@ -159,7 +169,7 @@ def whoami(token: str, run=subprocess.run) -> tuple[str, int]:
     try:
         result = run(
             ["gh", "api", "user"],
-            env={**os.environ, "GH_TOKEN": token},
+            env={**_without_cleared(os.environ), "GH_TOKEN": token},
             capture_output=True,
             text=True,
             check=False,
@@ -178,7 +188,12 @@ def whoami(token: str, run=subprocess.run) -> tuple[str, int]:
 
 
 def run_agent(
-    role: str, prompt: str | None, model: str | None, agent_login: str, check: bool
+    role: str,
+    prompt: str | None,
+    model: str | None,
+    agent_login: str,
+    owner_login: str,
+    check: bool,
 ) -> None:
     """Verify the agents' identity, then print it (``check``) or replace this process.
 
@@ -187,6 +202,7 @@ def run_agent(
         prompt: the first message, or None.
         model: a model override, or None.
         agent_login: the login the project's config expects.
+        owner_login: the owner's login; a token of this account is always refused.
         check: print the identity and launch nothing.
 
     Raises:
@@ -195,6 +211,11 @@ def run_agent(
     argv = agent_argv(role, prompt, model)
     token = read_token(token_path(os.environ))
     login, user_id = whoami(token, run=RUN)
+    if login.casefold() == owner_login.casefold():
+        raise AgentError(
+            f"the agents' token belongs to the owner ({login}); "
+            "agents need their own account, set as agent_login"
+        )
     if login != agent_login:
         raise AgentError(
             f"the agents' token belongs to {login}, but agent_login is {agent_login}; "

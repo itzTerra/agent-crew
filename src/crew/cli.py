@@ -227,7 +227,9 @@ def _cmd_agent(args: argparse.Namespace) -> int:
     from crew.agent import run_agent
 
     config = load_config(args.root)
-    run_agent(args.role, args.prompt, args.model, config.agent_login, args.check)
+    run_agent(
+        args.role, args.prompt, args.model, config.agent_login, config.owner_login, args.check
+    )
     return EXIT_OK
 
 

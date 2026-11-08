@@ -159,7 +159,7 @@ def test_ssh_remote_rewritten_to_https(git_repo):
 def test_existing_git_config_count_kept():
     base = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.pager", "GIT_CONFIG_VALUE_0": "cat"}
     env = agent_env(base, TOKEN, "botty", 42)
-    assert env["GIT_CONFIG_COUNT"] == "6"
+    assert env["GIT_CONFIG_COUNT"] == "7"
     assert (env["GIT_CONFIG_KEY_0"], env["GIT_CONFIG_VALUE_0"]) == ("core.pager", "cat")
     assert env["GIT_CONFIG_KEY_1"] == "user.name"
     assert base["GIT_CONFIG_COUNT"] == "1"
@@ -198,3 +198,62 @@ def test_missing_claude_binary_is_an_error(project, monkeypatch, capsys):
     assert main(["agent", "lead", "--root", str(root)]) == 2
     err = capsys.readouterr().err
     assert err.startswith("crew: error: ") and "claude" in err
+
+
+def test_ssh_disabled_for_every_form(git_repo, tmp_path):
+    repo, env = git_repo
+    with open(env["HOME"] + "/.gitconfig", "a") as config:
+        config.write('[url "git@github.com:"]\n\tpushInsteadOf = https://github.com/\n')
+    _git(env, "remote", "add", "origin", "https://github.com/example/app.git", cwd=repo)
+    _git(env, "remote", "add", "alias", "github-alias:example/app.git", cwd=repo)
+    _git(env, "commit", "-q", "--allow-empty", "-m", "t", cwd=repo)
+    # Whatever URL git ends up with, an ssh transport must refuse rather than use the owner's key.
+    for command in (["push", "origin", "HEAD:main"], ["ls-remote", "alias"]):
+        result = subprocess.run(
+            ["git", *command], cwd=repo, env=env, capture_output=True, text=True
+        )
+        assert result.returncode != 0
+        assert "ssh disabled" in result.stderr
+
+
+def test_ssh_url_form_rewritten_to_https(git_repo):
+    repo, env = git_repo
+    _git(env, "remote", "add", "origin", "ssh://git@github.com/example/app.git", cwd=repo)
+    url = _git(env, "ls-remote", "--get-url", "origin", cwd=repo).strip()
+    assert url == "https://github.com/example/app.git"
+
+
+def test_inherited_github_tokens_cleared():
+    base = {
+        "GITHUB_TOKEN": "owner",
+        "GH_ENTERPRISE_TOKEN": "o",
+        "GITHUB_ENTERPRISE_TOKEN": "o",
+        "GH_HOST": "ghe.example.com",
+        "PATH": "/bin",
+    }
+    env = agent_env(base, TOKEN, "botty", 42)
+    assert not {"GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_HOST"} & set(
+        env
+    )
+    assert env["PATH"] == "/bin"
+
+
+def test_whoami_ignores_inherited_github_vars(monkeypatch):
+    monkeypatch.setenv("GH_HOST", "ghe.example.com")
+    monkeypatch.setenv("GITHUB_TOKEN", "owner")
+    fake_run = FakeRun()
+    agent.whoami(TOKEN, run=fake_run)
+    ((_, kwargs),) = fake_run.calls
+    assert "GH_HOST" not in kwargs["env"] and "GITHUB_TOKEN" not in kwargs["env"]
+
+
+def test_agent_login_equal_to_owner_refuses(project, monkeypatch, capsys):
+    root, _, _, fake_exec = project
+    (root / ".crew" / "config.yaml").write_text(
+        "repo: example/app\nowner_login: owner-a\nagent_login: Owner-A\n"
+    )
+    monkeypatch.setattr(agent, "RUN", FakeRun(login="Owner-A", user_id=7))
+    assert main(["agent", "lead", "--root", str(root)]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("crew: error: ") and "owner" in err
+    assert fake_exec.calls == []

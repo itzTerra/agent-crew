@@ -108,7 +108,10 @@ owner-facing units can never be merged; it also makes your input and the agents'
 `crew agent` checks that the token belongs to `agent_login` and refuses to start otherwise; it
 never falls back to your `gh` login. The session gets the token only through `GH_TOKEN`, commits
 as the agents' noreply address, and pushes over HTTPS with gh's credential helper: your stored git
-credentials are not used, and `git@github.com:` remotes are rewritten to HTTPS for the session.
+credentials are not used, `git@github.com:` and `ssh://git@github.com/` remotes are rewritten to
+HTTPS, and any other SSH transport is refused, so your SSH key is never used. A token of
+`owner_login`, and inherited `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN` and
+`GH_HOST` values, are never passed to the session.
 
 Automated runs come in a later version. Until then you start the agents yourself, for example in
 herdr panes, one per agent.
