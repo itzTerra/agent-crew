@@ -8,6 +8,10 @@ from crew.labels import Label
 
 ISSUE_FIELDS = "number,title,body,labels,state,createdAt,closedAt,url"
 PR_FIELDS = "number,title,labels,headRefName,closingIssuesReferences,mergedAt,author,url"
+PR_DETAIL_FIELDS = (
+    "number,title,url,state,labels,headRefName,closingIssuesReferences,"
+    "reviews,comments,commits,statusCheckRollup"
+)
 LIST_LIMIT = "1000"
 
 
@@ -40,6 +44,17 @@ class GitHub:
         """The body of issue ``number``."""
         data = self._json("issue", "view", str(number), "--repo", self.repo, "--json", "body")
         return data.get("body") or ""
+
+    def pr_detail(self, number: int) -> dict:
+        """PR ``number`` with its reviews, comments, commits and checks."""
+        return self._json(
+            "pr", "view", str(number), "--repo", self.repo, "--json", PR_DETAIL_FIELDS
+        )
+
+    def issue_comments(self, number: int) -> list[dict]:
+        """The comments on issue ``number``."""
+        data = self._json("issue", "view", str(number), "--repo", self.repo, "--json", "comments")
+        return data.get("comments") or []
 
     def pr_files(self, number: int) -> list[str]:
         """Paths PR ``number`` changes, from ``gh pr diff --name-only``."""

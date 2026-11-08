@@ -583,7 +583,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   the named ones count, and a missing one is `pending`. Any `FAILURE`, `CANCELLED`, `TIMED_OUT` or
   `ACTION_REQUIRED` conclusion → `fail`. Any check not `COMPLETED` → `pending`. No checks → `none`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_owner_comment_before_run_is_unanswered` (Review Focus 1): the owner's comment is later than the
     last agent comment and commit → `feedback`. No notion of "run start" enters the rule.
   - `test_latest_owner_action_wins` (Review Focus 5): comment then approve → `approved`; approve then
@@ -593,10 +593,10 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   - `test_checks_state_cases`: pass, fail, pending, none, and a required check missing → pending.
   - `test_take_snapshot_calls`: with a fake `run`, one `pr_detail` call per open PR, and
     `issue_comments` only for issues labeled `crew:owner-decision`.
-- [ ] **Step 2:** Run `uv run pytest tests/supervisor -v`. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: read PR state and the owner's unanswered activity for the supervisor`.
+- [x] **Step 2:** Run `uv run pytest tests/supervisor -v`. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: read PR state and the owner's unanswered activity for the supervisor`.
 
 ### Task 13: The planner
 
