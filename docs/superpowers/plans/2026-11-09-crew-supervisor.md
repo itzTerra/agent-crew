@@ -944,12 +944,12 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
 - **`docs/workflow.md`:** the runs section, describing the supervisor as built.
 - **Version** `0.3.0` everywhere.
 
-- [ ] **Step 1: Write the failing tests:** add `run` and `budget` to `SKILLS`; `test_run_skill_needs_owner_go_ahead`
+- [x] **Step 1: Write the failing tests:** add `run` and `budget` to `SKILLS`; `test_run_skill_needs_owner_go_ahead`
   (contains `--dry-run` and `go-ahead`).
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Write the skills and docs, and bump the version.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check && claude plugin validate plugins/crew`. Expected: PASS.
-- [ ] **Step 5: Smoke test** in a scratch private repo (`gh repo create <owner>/crew-sandbox --private`),
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Write the skills and docs, and bump the version.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check && claude plugin validate plugins/crew`. Expected: PASS.
+- [x] **Step 5: Smoke test** in a scratch private repo (`gh repo create <owner>/crew-sandbox --private`),
   with the agents' account added as a collaborator:
   1. `crew init`, `crew labels sync`. File one tiny ready internal unit, for example "add a
      `hello.txt`" with Owns `hello.txt`.
@@ -959,7 +959,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   4. `crew labels check`. Expected: no problems.
 
   Ask the owner before deleting the sandbox repo.
-- [ ] **Step 6:** Commit `feat: add run and budget skills and document automated runs`. With the
+- [x] **Step 6:** Commit `feat: add run and budget skills and document automated runs`. With the
   owner's go-ahead, push, tag `v0.3.0` and push the tag.
 
 

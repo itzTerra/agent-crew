@@ -56,7 +56,9 @@ def test_agent_brief_covers_shared_rules(name):
         assert phrase in text, f"{name}.md lacks {phrase!r}"
 
 
-SKILLS = ["inbox", "kickoff", "pitch", "refine", "relay", "implement", "review", "merge"]
+SKILLS = [
+    "inbox", "kickoff", "pitch", "refine", "relay", "implement", "review", "merge", "run", "budget",
+]  # fmt: skip
 MAX_SKILL_BODY_LINES = 120
 CLI_MENTION = re.compile(r"(?:^|`|\$ )crew ([a-z][a-z-]*)", re.MULTILINE)
 
@@ -128,3 +130,17 @@ def test_lead_and_kickoff_propose_one_requirements_file():
 def test_lead_and_architect_read_stated_reason():
     for name in ("lead", "architect"):
         assert "reason it prints" in (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")
+
+
+def test_run_skill_needs_owner_go_ahead():
+    text = skill_text("run")
+    assert "--dry-run" in text and "go-ahead" in text
+
+
+def test_implement_reuses_run_worktree():
+    assert "a run made it" in skill_text("implement")
+
+
+def test_lead_points_to_run_skills():
+    lead = (PLUGIN / "agents" / "lead.md").read_text(encoding="utf-8")
+    assert "## Runs" in lead and "crew:run" in lead and "crew:budget" in lead

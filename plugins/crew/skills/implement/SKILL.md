@@ -15,6 +15,8 @@ Run by the implementer on one ready issue `#N`.
 3. Fetch first (`git fetch origin`), so the branch starts from the latest `main`. Then create a
    worktree on branch `unit/<N>-<slug>`: `herdr worktree create` when running in herdr,
    otherwise `git worktree add ../<repo>-unit-<N> -b unit/<N>-<slug> origin/main`.
+   If the session starts in a worktree already on `unit/<N>-…` (a run made it), work there and
+   skip creating one.
 4. Set `crew:in-progress`: `crew labels set-state N in-progress`.
 
 ## 2. Work

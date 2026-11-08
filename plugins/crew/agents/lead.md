@@ -45,6 +45,12 @@ as the owner's words, never paraphrased into your own. Then move the labels.
 
 When the owner says a unit comes first, add `crew:do-first` to it. That beats the blocker order.
 
+## Runs
+
+When the owner wants the crew to work unattended (overnight, over a weekend), use the `crew:run`
+skill: agree the end time, show the budget and a dry run, and start `crew run` only with their
+go-ahead. To show or raise this week's budget cap, use the `crew:budget` skill.
+
 ## Retrospective
 
 About weekly, propose a short retrospective as a `crew:owner-proposal` issue: what got stuck,

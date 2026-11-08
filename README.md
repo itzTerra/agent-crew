@@ -60,16 +60,23 @@ claude plugin install crew@agent-crew
 | File | What it is |
 |---|---|
 | `.crew/config.yaml` | Project settings (see below) |
-| `.gitignore` entry | `.crew/state.json`, the local state |
+| `.gitignore` entries | `.crew/state.json` and `.crew/run.json`, the local state |
 | `.github/ISSUE_TEMPLATE/unit.md` | The unit template: Goal, Bet, Spec delta, Owns, Depends on, Kind |
 | `.github/pull_request_template.md` | Summary, Closes #, Spec changes, How to run, Manual checklist, Review rounds |
-| `.github/workflows/crew-docs.yml` | Runs `crew check-docs` on every PR |
+| `.github/workflows/crew-docs.yml` | Runs `crew check-docs` and `crew check-owns` on every PR |
 | `docs/specs/`, `docs/pitches/`, `docs/adr/` | READMEs and templates for living specs, pitches and ADRs |
 
 `crew labels sync` creates or updates the `crew:` labels on GitHub. Run it again after upgrading.
 
 `crew-docs.yml` installs the CLI from this repo at the tag of the version that wrote it
-(`@v0.2.0`), so a change here can't break a project's CI. To upgrade, edit the tag.
+(`@v0.3.0`), so a change here can't break a project's CI. To upgrade, edit the tag. Projects set
+up with an older `crew init` add the `crew check-owns` step by hand, after `crew check-docs`:
+
+```yaml
+      - run: crew check-owns ${{ github.event.pull_request.number }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+```
 
 ### Settings
 
@@ -88,6 +95,10 @@ claude plugin install crew@agent-crew
 | `ci_checks` | `[]` | CI checks that must be green before review |
 | `owner_decisions_extra` | `[]` | Decisions reserved for the owner, beyond the standard list |
 | `merge_rules` | `""` | Merge rules (text or a file path) for the `crew:merge` skill |
+| `poll_seconds` | 120 | `crew run`: seconds between looks at GitHub (at least 30) |
+| `refine_ahead` | 2 | `crew run`: ready units to keep refined ahead of the workers |
+| `stop_grace_minutes` | 15 | `crew run`: how long agents get to commit and push when the run ends |
+| `estimates` | see below | `crew run`: minutes per kind of action; a run doesn't start what it can't finish in time |
 
 ## CLI
 
@@ -98,7 +109,14 @@ claude plugin install crew@agent-crew
 | `crew check-docs [--strict]` | Check requirements, living specs, ADRs and pitches, and the references between them |
 | `crew check-issue (--number N \| --file PATH)` | Check a unit against the definition of ready |
 | `crew inbox [--peek]` | What waits on the owner, what merged without them, and dependency cycles; marks the inbox as seen unless `--peek` |
-| `crew next [--rough]` | The ready units in the order workers should take them, and dependency cycles; with `--rough`, the rough units in refinement order |
+| `crew next [--rough]` | The ready units in the order workers should take them, why each other ready unit is left out, and dependency cycles; with `--rough`, the rough units in refinement order |
+| `crew check-owns PR [--range REV_RANGE]` | Check that a PR changes only the paths its unit owns (plus its spec delta's target); with `--range`, the paths come from `git diff --name-only` |
+| `crew labels set-state N STATE` | Move an issue and its open PRs (or a PR and its issues) to one state: `rough`, `ready`, `in-progress`, `in-review`, `changes-requested`, `owner-accept`, `owner-stuck`, or `done` to clear them |
+| `crew labels check [--fix]` | State labels that disagree; `--fix` removes those left on closed issues and merged PRs |
+| `crew agent ROLE [PROMPT] [--model M] [--auto] [--check]` | Start an agent session under the agents' login (see below) |
+| `crew usage` | The latest weekly and 5-hour usage reading and its age |
+| `crew budget [--week N \| --reset]` | The budget cap in force; raise it for this week, or go back to the default |
+| `crew run --until WHEN [--cap N] [--dry-run] [--once]` | Keep agents busy in herdr until an end time (see *Automated runs*) |
 
 Every command takes `--root PATH` (default: the current directory). Exit codes: 0 success,
 1 findings, 2 error (one line on stderr: `crew: error: <message>`). Findings print as
@@ -125,8 +143,8 @@ HTTPS, and any other SSH transport is refused, so your SSH key is never used. A 
 `owner_login`, and inherited `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN` and
 `GH_HOST` values, are never passed to the session.
 
-Automated runs come in a later version. Until then you start the agents yourself, for example in
-herdr panes, one per agent.
+To let the crew work without you, see *Automated runs* below. By hand, you start the agents
+yourself, for example in herdr panes, one per agent.
 
 **Your session**, with the lead:
 
@@ -149,6 +167,56 @@ crew agent reviewer "Use crew:review on PR #14"
 `crew next` tells you which issues to start, without two workers touching the same paths. Each
 agent's model is set in its definition (Opus for lead, architect and reviewer; Sonnet for
 designer and implementer); pass `--model sonnet` (`crew agent reviewer --model sonnet "…"`) to review an internal unit more cheaply.
+
+## Automated runs
+
+`crew run` keeps up to `max_agents` agents busy in [herdr](https://herdr.dev) until an end time.
+Nothing runs unless you start it; the lead's `crew:run` skill walks you through it.
+
+```sh
+crew budget                                   # the cap and the latest usage reading
+crew run --until 07:00 --dry-run --once       # what the first tick would do; changes nothing
+crew run --until "Mon 07:00"                  # the run, in its own herdr tab
+```
+
+`--until` takes `07:00` (the next 07:00), `Mon 07:00` (the next Monday at 07:00) or an ISO 8601
+time. `--cap N` sets the weekly budget cap for this run only. `--once` runs a single tick.
+`--dry-run` prints, for each tick, the label changes it would make, the agents it would start
+(role and prompt) and why everything else waits, and changes nothing.
+
+Every tick (`poll_seconds`) the run reads GitHub and then:
+
+- turns owner feedback on a PR into `crew:changes-requested`, and a red CI on a PR in review into
+  the same with a comment naming the checks;
+- starts agents in this order: merge approved owner-facing PRs, fix PRs with changes requested,
+  review PRs whose CI is green (Sonnet for internal units, Opus for owner-facing ones), follow up
+  owner answers on `crew:owner-decision` items, resume units paused by an earlier run, implement
+  ready units (the `crew next` order), and refine rough units to keep `refine_ahead` ready;
+- each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode,
+  in a worktree under `.crew/worktrees/` (inside the project, so Claude Code's trust in the
+  project covers it);
+- an agent that stops before its unit moves on is nudged once; if it stops again, the run
+  comments its last output on the issue and sets `crew:owner-stuck`.
+
+**Stopping.** The run stops at the end time or the budget cap, whichever comes first, and ends
+early when everything waits on you. It doesn't start an action it can't finish before the end
+(`estimates`, in minutes: merge 15, fix 30, review 20, followup 30, resume 60, implement 90,
+refine 20). At the stop, and on Ctrl-C, every agent is told to commit and push its work in
+progress and comment what remains; after `stop_grace_minutes` the panes close. Units left
+in progress are recorded in `.crew/run.json`, and the next run resumes them. When the 5-hour usage
+window is full, the run waits for it to reset and tells the agents to continue. Starting a
+second run while one is active is refused; a restarted run adopts the agents still alive.
+
+**Usage and the budget.** The cap counts the whole account's weekly usage, your own sessions
+included: 75% by default (`budget_cap_percent`). `crew budget --week 95` raises it until the
+weekly limit resets; `crew budget --reset` drops the raise. The reading comes from Claude Code's
+status line: `crew agent` sets each session's status line to `crew usage record`, which stores the
+latest `rate_limits` reading in `~/.local/state/crew/usage-<account>.json` (`$XDG_STATE_HOME`,
+one file per `CLAUDE_CONFIG_DIR`; `CREW_USAGE_FILE` overrides it). With no reading, or one older
+than 30 minutes, the run starts at most one agent, whose status line brings a fresh reading.
+
+The crew plugin must be installed for your user (`claude plugin install crew@agent-crew`), or for
+the project: run worktrees then get it from the project's `.claude/settings.json`.
 
 ## Development
 

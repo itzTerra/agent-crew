@@ -206,3 +206,41 @@ quality.
   first; units that build on them depend on them.
 - A dependency counts as done only when it is merged. Nobody builds on unmerged work.
 - Before merging, a branch is rebased onto `main` and CI must be green again.
+
+## Runs
+
+Nothing runs unless the owner starts a run. A run has an end time, such as "until 07:00", or
+"until Monday 07:00" when started on a Friday. The lead agrees it with the owner, shows the budget
+and a dry run of the first step, and starts the run only with the owner's go-ahead.
+
+During a run a small local supervisor (`crew run`) keeps up to N agents busy, N = 1–3 from the
+project settings (`max_agents`). Every couple of minutes it reads GitHub and:
+
+- turns the owner's comments on a PR into "changes requested", and the owner's approval of an
+  owner-facing PR into a merge. When the owner both comments and approves, the later action wins;
+  feedback written before the run started counts like any other;
+- returns a PR whose CI failed to its implementer, naming the failed checks;
+- starts agents, finishing work before starting new work: merges, fixes, reviews (Opus for
+  owner-facing units, Sonnet for internal ones), follow-ups on owner answers, units an earlier run
+  paused, then new ready units in pick order (*do first* units ahead of the rest, then highest
+  blocker first). It keeps a few units refined ahead of the workers (just-in-time refinement);
+- runs each agent in its own terminal tab and worktree, under the agents' GitHub login, in Claude
+  Code's auto mode;
+- nudges an agent that stops before its unit moves on, once; an agent that stops again is
+  reported on the issue and its unit marked stuck for the owner.
+
+The run stops at the end time or the budget cap, whichever comes first:
+
+- it doesn't start a unit it can't plausibly finish before the stop;
+- work in progress at the stop is committed and pushed, so nothing is lost, and the next run
+  resumes it;
+- if nothing is ready (everything waits on the owner), the run ends early;
+- it waits out session-limit resets and continues, so one evening start can span two overnight
+  windows.
+
+**Budget cap.** The default is 75% of the weekly limit. The owner can raise it for the current
+week ("this week, up to 95%"); it falls back to the default when the weekly limit resets. The cap
+counts the whole account's weekly usage, including the owner's own sessions. The supervisor reads
+usage from the agents' own sessions; while it has no recent reading, it starts at most one agent.
+A restarted supervisor adopts the agents still running, and a second run is refused while one is
+active.
