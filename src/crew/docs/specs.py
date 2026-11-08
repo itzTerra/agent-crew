@@ -254,7 +254,7 @@ def _parse_requirement(
     if not _SHALL.search(statement_text):
         at = statement[0][0] if statement else line
         findings.append(
-            Finding(path, at, "SPEC-SHALL", f"requirement `{name}` has no \"shall\" statement")
+            Finding(path, at, "SPEC-SHALL", f'requirement `{name}` has no "shall" statement')
         )
     if not scenarios:
         findings.append(Finding(path, line, "SPEC-NOSCEN", f"requirement `{name}` has no scenario"))
