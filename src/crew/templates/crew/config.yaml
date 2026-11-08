@@ -24,3 +24,9 @@ owner_decisions_extra: []
 
 # Merge rules (free text or a path to a file), read by the crew:merge skill.
 merge_rules: ""
+
+# crew run (automated runs)
+poll_seconds: 120            # seconds between looks at GitHub (at least 30)
+refine_ahead: 2              # ready units to keep refined ahead of the workers
+stop_grace_minutes: 15       # how long agents get to commit and push when a run ends
+estimates: {}                # minutes per action kind, e.g. {implement: 120}; see the README

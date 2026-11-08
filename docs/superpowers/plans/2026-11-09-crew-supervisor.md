@@ -691,7 +691,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   `idle` is true when there are no actions and no housekeeping, no PR has checks `pending`, and no
   dropped action is waiting only on slots or time.
 
-- [ ] **Step 1: Write the failing tests** (snapshots built by hand, no `gh`):
+- [x] **Step 1: Write the failing tests** (snapshots built by hand, no `gh`):
   - `test_config_run_keys_defaults_and_validation` in `tests/test_config.py`.
   - `test_slug_and_unit_branch`: `"Add CSV export (v2)!"` → `unit/12-add-csv-export-v2`; a long title is
     cut to ≤ 40 slug characters at a `-`.
@@ -710,10 +710,10 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   - `test_refine_ahead_keeps_one_refiner`.
   - `test_live_agent_target_skipped` and `test_label_problem_target_skipped`.
   - `test_idle_when_everything_waits_on_owner`.
-- [ ] **Step 2:** Run `uv run pytest tests/supervisor/test_planner.py tests/test_config.py -v`. Expected: FAIL.
-- [ ] **Step 3:** Implement. Add the four keys to the config template with one-line comments.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: plan supervisor actions from GitHub state`.
+- [x] **Step 2:** Run `uv run pytest tests/supervisor/test_planner.py tests/test_config.py -v`. Expected: FAIL.
+- [x] **Step 3:** Implement. Add the four keys to the config template with one-line comments.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: plan supervisor actions from GitHub state`.
 
 ### Task 14: herdr driver and worktrees
 

@@ -8,6 +8,17 @@ import yaml
 CONFIG_PATH = Path(".crew") / "config.yaml"
 REQUIRED_KEYS = ("repo", "owner_login", "agent_login")
 BUDGET_MIN, BUDGET_MAX = 1, 100
+# Minutes each kind of supervisor action is expected to take; a run doesn't start an action
+# it can't plausibly finish before its end time.
+DEFAULT_ESTIMATES = {
+    "merge": 15,
+    "fix": 30,
+    "review": 20,
+    "followup": 30,
+    "resume": 60,
+    "implement": 90,
+    "refine": 20,
+}
 
 
 class ConfigError(Exception):
@@ -39,6 +50,10 @@ class Config:
     ci_checks: list[str] = field(default_factory=list)
     owner_decisions_extra: list[str] = field(default_factory=list)
     merge_rules: str = ""
+    poll_seconds: int = 120
+    refine_ahead: int = 2
+    stop_grace_minutes: int = 15
+    estimates: dict[str, int] = field(default_factory=lambda: dict(DEFAULT_ESTIMATES))
 
 
 def load_config(root: Path) -> Config:
@@ -79,6 +94,11 @@ def load_config(root: Path) -> Config:
     if max_agents < 1:
         raise ConfigError(f"{CONFIG_PATH}: max_agents must be at least 1, got {max_agents}")
 
+    poll_seconds = _int_at_least(data, "poll_seconds", 120, 30)
+    refine_ahead = _int_at_least(data, "refine_ahead", 2, 0)
+    stop_grace_minutes = _int_at_least(data, "stop_grace_minutes", 15, 1)
+    estimates = _estimates(data)
+
     return Config(
         repo=str(data["repo"]),
         owner_login=str(data["owner_login"]),
@@ -90,7 +110,34 @@ def load_config(root: Path) -> Config:
         ci_checks=_str_list(data, "ci_checks"),
         owner_decisions_extra=_str_list(data, "owner_decisions_extra"),
         merge_rules=str(data.get("merge_rules") or ""),
+        poll_seconds=poll_seconds,
+        refine_ahead=refine_ahead,
+        stop_grace_minutes=stop_grace_minutes,
+        estimates=estimates,
     )
+
+
+def _int_at_least(data: dict, key: str, default: int, minimum: int) -> int:
+    value = _int(data, key, default)
+    if value < minimum:
+        raise ConfigError(f"{CONFIG_PATH}: {key} must be at least {minimum}, got {value}")
+    return value
+
+
+def _estimates(data: dict) -> dict[str, int]:
+    given = data.get("estimates") or {}
+    if not isinstance(given, dict):
+        raise ConfigError(f"{CONFIG_PATH}: estimates must be a mapping of action kind to minutes")
+    unknown = set(given) - set(DEFAULT_ESTIMATES)
+    if unknown:
+        raise ConfigError(
+            f"{CONFIG_PATH}: unknown estimates key(s): {', '.join(sorted(map(str, unknown)))}; "
+            f"use {', '.join(DEFAULT_ESTIMATES)}"
+        )
+    estimates = dict(DEFAULT_ESTIMATES)
+    for key in given:
+        estimates[key] = _int_at_least(given, key, DEFAULT_ESTIMATES[key], 0)
+    return estimates
 
 
 def _int(data: dict, key: str, default: int) -> int:
