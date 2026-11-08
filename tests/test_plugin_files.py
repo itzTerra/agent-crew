@@ -1,9 +1,13 @@
 """Structure checks for the plugin's agents and skills."""
 
+import argparse
+import re
 from pathlib import Path
 
 import pytest
 import yaml
+
+from crew.cli import build_parser
 
 PLUGIN = Path(__file__).resolve().parent.parent / "plugins" / "crew"
 AGENTS = ["lead", "architect", "designer", "implementer", "reviewer"]
@@ -45,5 +49,44 @@ def test_agent_brief_covers_shared_rules(name):
         "docs/superpowers/",
         "owner_decisions_extra",
         "force-push",
+        "agent_login",
+        "--peek",
     ):
         assert phrase in text, f"{name}.md lacks {phrase!r}"
+
+
+SKILLS = ["inbox", "kickoff", "pitch", "refine", "relay", "implement", "review", "merge"]
+MAX_SKILL_BODY_LINES = 120
+CLI_MENTION = re.compile(r"(?:^|`|\$ )crew ([a-z][a-z-]*)", re.MULTILINE)
+
+
+def registered_commands() -> set[str]:
+    parser = build_parser()
+    actions = [a for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
+    return set(actions[0].choices)
+
+
+def test_expected_skills_present():
+    assert sorted(p.name for p in (PLUGIN / "skills").iterdir()) == sorted(SKILLS)
+
+
+@pytest.mark.parametrize("name", SKILLS)
+def test_skill_frontmatter(name):
+    path = PLUGIN / "skills" / name / "SKILL.md"
+    assert path.is_file()
+    meta, body = split_frontmatter(path)
+    assert meta["name"] == name
+    assert isinstance(meta.get("description"), str) and meta["description"].strip()
+    assert len(body) <= MAX_SKILL_BODY_LINES
+
+
+def test_skills_reference_existing_cli_commands():
+    commands = registered_commands()
+    assert {"init", "check-docs", "check-issue", "labels", "inbox", "next"} <= commands
+    mentioned = {}
+    for path in (PLUGIN / "skills").glob("*/SKILL.md"):
+        for match in CLI_MENTION.finditer(path.read_text(encoding="utf-8")):
+            mentioned.setdefault(match.group(1), path.parent.name)
+    assert mentioned, "skills mention no crew commands"
+    unknown = {cmd: skill for cmd, skill in mentioned.items() if cmd not in commands}
+    assert not unknown, f"skills mention unregistered commands: {unknown}"
