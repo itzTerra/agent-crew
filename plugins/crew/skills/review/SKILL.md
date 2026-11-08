@@ -6,13 +6,15 @@ description: "Review a pull request as the independent gate, then pass, fail or 
 # Review
 
 Run by the reviewer on PR `#P`, in a fresh session. Follow your brief's checklist; this skill
-gives the steps.
+gives the steps. Set every outcome with `crew labels set-state P <state>`: it moves the linked
+issue's label with the PR's, so the two never disagree.
 
 ## 1. Gate
 
-1. CI must be green: `gh pr checks P`. If not, comment which check fails, set
-   `crew:changes-requested` and stop. Don't review red work.
+1. CI must be green: `gh pr checks P`. If not, comment which check fails, run
+   `crew labels set-state P changes-requested` and stop. Don't review red work.
 2. Run `crew check-docs` on the PR branch yourself.
+3. Run `crew check-owns P`. Any path outside the unit's Owns is a failing finding.
 
 ## 2. Read
 
@@ -35,9 +37,9 @@ Read the PR's "Review rounds" section. Your round is the next number. Edit the P
 ## 5. Outcome
 
 - **Pass, owner-facing:** comment a short owner summary (what it does, how to run it, the
-  checklist), set `crew:owner-accept`, remove `crew:in-review`.
+  checklist), then `crew labels set-state P owner-accept`.
 - **Pass, internal:** use the `crew:merge` skill.
 - **Fail (rounds 1–2):** one comment with numbered findings, each with file, line, the problem
-  and what would fix it; set `crew:changes-requested`, remove `crew:in-review`.
-- **Fail on round 3:** set `crew:owner-stuck` instead, with a summary of what keeps failing and
-  your suggestion.
+  and what would fix it; then `crew labels set-state P changes-requested`.
+- **Fail on round 3:** `crew labels set-state P owner-stuck` instead, with a summary of what
+  keeps failing and your suggestion.

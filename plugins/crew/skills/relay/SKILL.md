@@ -20,9 +20,7 @@ Run by the lead, when the owner tells you feedback for a PR instead of writing i
    If you need to add context (for example which checklist step it refers to), put it after the
    quote under `Context (lead):`, clearly as yours.
    Use `gh pr comment N --body-file <file>` so line breaks and quotes survive.
-3. Set the labels: add `crew:changes-requested` and remove `crew:owner-accept` or
-   `crew:in-review` if present:
-   `gh pr edit N --add-label crew:changes-requested --remove-label crew:owner-accept`.
+3. Set the state on the PR and its issue together: `crew labels set-state N changes-requested`.
 4. Tell the owner it is posted, with the comment link.
 
 If the feedback is an approval, ask the owner to approve the PR on GitHub themselves: only

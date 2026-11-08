@@ -90,3 +90,30 @@ def test_skills_reference_existing_cli_commands():
     assert mentioned, "skills mention no crew commands"
     unknown = {cmd: skill for cmd, skill in mentioned.items() if cmd not in commands}
     assert not unknown, f"skills mention unregistered commands: {unknown}"
+
+
+def skill_text(name):
+    return (PLUGIN / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_merge_rebases_before_squashing():
+    text = skill_text("merge")
+    assert text.index("git rebase origin/main") < text.lower().index("squash")
+    assert "crew check-owns P --range origin/main...HEAD" in text
+    assert "<merge-sha>^..<merge-sha>" in text
+
+
+@pytest.mark.parametrize("name", ["merge", "review", "implement", "refine"])
+def test_label_changes_use_set_state(name):
+    text = skill_text(name)
+    assert "--add-label" not in text and "--remove-label" not in text
+    assert "crew labels set-state" in text
+
+
+def test_implement_squashes_and_flags_size():
+    text = skill_text("implement")
+    assert "--force-with-lease" in text and "25" in text and "10" in text
+
+
+def test_refine_one_unit_only():
+    assert "only that unit" in skill_text("refine")

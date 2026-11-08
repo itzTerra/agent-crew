@@ -382,7 +382,7 @@ task here.
   - The same size rule as implement: if refining shows the unit will exceed it, say so on the issue
     and propose a split.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_merge_rebases_before_squashing`: in the merge skill, the first `git rebase origin/main`
     comes before the first `squash`, and the text contains `crew check-owns P --range origin/main...HEAD`
     and `<merge-sha>^..<merge-sha>`.
@@ -390,10 +390,10 @@ task here.
     `--remove-label`; each contains `crew labels set-state`.
   - `test_implement_squashes_and_flags_size`: contains `--force-with-lease`, `25`, `10`.
   - `test_refine_one_unit_only`: contains `only that unit`.
-- [ ] **Step 2:** Run `uv run pytest tests/test_plugin_files.py -v`. Expected: FAIL.
-- [ ] **Step 3:** Edit the four skills.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS (including `test_skills_reference_existing_cli_commands`).
-- [ ] **Step 5:** Commit `feat: rebase before squashing, check owned paths and move labels together in the skills`.
+- [x] **Step 2:** Run `uv run pytest tests/test_plugin_files.py -v`. Expected: FAIL.
+- [x] **Step 3:** Edit the four skills.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS (including `test_skills_reference_existing_cli_commands`).
+- [x] **Step 5:** Commit `feat: rebase before squashing, check owned paths and move labels together in the skills`.
 
 ### Task 8: Briefs and kickoff — URLs, one requirements file, stated reasons (R4, R5, R8)
 

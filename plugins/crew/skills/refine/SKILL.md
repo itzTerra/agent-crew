@@ -9,9 +9,12 @@ Run by the architect (or the lead) in refinement mode.
 
 ## Pick
 
-Run `crew next --rough`: it lists the rough units in the order the workers will need them
-(do-first, then the ones that block the most other work, then the oldest), leaving out units
-that wait on the owner. Take them from the top. Refine a few ahead, not the whole backlog.
+Given one unit (`#N`), refine only that unit, and stop when it is done.
+
+Only when asked to refine the backlog, run `crew next --rough`: it lists the rough units in the
+order the workers will need them (do-first, then the ones that block the most other work, then
+the oldest), leaving out units that wait on the owner. Take them from the top. Refine a few
+ahead, not the whole backlog.
 
 ## Per unit
 
@@ -29,10 +32,13 @@ that wait on the owner. Take them from the top. Refine a few ahead, not the whol
    - **Kind:** `owner-facing` (user-visible, design, decisions, anything in an owner decision
      area) or `internal`. When unsure, `owner-facing`.
 3. Run `crew check-issue --number N` and fix the body until it reports nothing.
-4. Set `crew:ready` and remove `crew:rough`:
-   `gh issue edit N --add-label crew:ready --remove-label crew:rough`.
+4. Set `crew:ready`: `crew labels set-state N ready`.
 
 Scale the effort to the unit: a few lines for a small one, a short brainstorm for a larger one.
+
+If refining shows the unit will grow well past the issue (more than about 25 new requirement or
+scenario IDs, or more than about 10 questions for the owner), don't set it ready: say so on the
+issue, with its full URL, and propose a split into smaller units.
 
 ## Questions only the owner can answer
 

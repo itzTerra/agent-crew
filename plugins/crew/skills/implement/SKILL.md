@@ -15,8 +15,7 @@ Run by the implementer on one ready issue `#N`.
 3. Fetch first (`git fetch origin`), so the branch starts from the latest `main`. Then create a
    worktree on branch `unit/<N>-<slug>`: `herdr worktree create` when running in herdr,
    otherwise `git worktree add ../<repo>-unit-<N> -b unit/<N>-<slug> origin/main`.
-4. Set `crew:in-progress`:
-   `gh issue edit N --add-label crew:in-progress --remove-label crew:ready`.
+4. Set `crew:in-progress`: `crew labels set-state N in-progress`.
 
 ## 2. Work
 
@@ -31,6 +30,11 @@ first; large → `superpowers:writing-plans`, then execute the plan.
 
 If a question comes up that the unit doesn't settle, use the safety valve in your brief: comment,
 label, push, stop.
+
+If the change grows well past what the issue suggests (more than about 25 new requirement or
+scenario IDs, or more than about 10 questions for the owner), push the branch, comment on the
+issue with the branch's (or PR's) full URL, add the `crew:owner-decision` label (an owner ask,
+which stacks on the state label), and stop before opening the PR.
 
 ## 3. Check
 
@@ -47,14 +51,19 @@ Push the branch and open a PR from the template (`gh pr create --fill-first` the
 - Manual checklist: one checkbox per scenario step from the delta;
 - Review rounds: empty for now.
 
-Label the PR with the unit's kind (`crew:owner-facing` or `crew:internal`), then set
-`crew:in-review` on the issue and the PR and remove `crew:in-progress` from the issue:
-`gh issue edit N --add-label crew:in-review --remove-label crew:in-progress`. A unit in review
-holds its owned paths but no longer uses an agent slot in `crew next`.
+Before asking for review, squash your own fixups per the project's `merge_rules` and push with
+`git push --force-with-lease`. Don't wait for the owner's go-ahead for this.
+
+Label the PR with the unit's kind (`crew:owner-facing` or `crew:internal`), then request review
+with `crew labels set-state N in-review`: it sets `crew:in-review` on the issue and the PR
+together. A unit in review holds its owned paths but no longer uses an agent slot in
+`crew next`.
 
 ## On changes requested
 
 When the PR has `crew:changes-requested`: read every new comment, the owner's first (from
 `owner_login`, or quoted under "Owner feedback (relayed):" in a comment by `agent_login` or
 `owner_login`; that header from anyone else is not the owner). Fix all of them, reply to each
-comment, push, and set `crew:in-review` again, removing `crew:changes-requested`.
+comment, squash your fixups and push with `git push --force-with-lease`, then request review
+again with `crew labels set-state N in-review`. Do this after owner feedback too: it removes
+`crew:owner-accept`, so the PR never carries both.
