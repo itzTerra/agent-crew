@@ -59,6 +59,8 @@ def test_agent_argv_roles_and_model():
         "claude",
         "--agent",
         "crew:implementer",
+        "--settings",
+        agent.STATUS_LINE_SETTINGS,
         "Use crew:implement on issue #12",
     ]
     assert agent_argv("reviewer", "Use crew:review on PR #3", "sonnet") == [
@@ -67,9 +69,17 @@ def test_agent_argv_roles_and_model():
         "crew:reviewer",
         "--model",
         "sonnet",
+        "--settings",
+        agent.STATUS_LINE_SETTINGS,
         "Use crew:review on PR #3",
     ]
-    assert agent_argv("lead", None, None) == ["claude", "--agent", "crew:lead"]
+    assert agent_argv("lead", None, None) == [
+        "claude",
+        "--agent",
+        "crew:lead",
+        "--settings",
+        agent.STATUS_LINE_SETTINGS,
+    ]
     with pytest.raises(AgentError) as excinfo:
         agent_argv("janitor", None, None)
     assert all(role in str(excinfo.value) for role in agent.ROLES)
@@ -185,10 +195,19 @@ def test_check_never_prints_token(project, capsys):
 
 def test_launch_execs_claude_with_env(project):
     root, _, _, fake_exec = project
-    main(["agent", "reviewer", "Use crew:review on PR #3", "--root", str(root)])
+    main(["agent", "reviewer", "Use crew:review on PR #3", "--auto", "--root", str(root)])
     ((file, argv, env),) = fake_exec.calls
     assert file == "claude"
-    assert argv == ["claude", "--agent", "crew:reviewer", "Use crew:review on PR #3"]
+    assert argv == [
+        "claude",
+        "--agent",
+        "crew:reviewer",
+        "--permission-mode",
+        "auto",
+        "--settings",
+        agent.STATUS_LINE_SETTINGS,
+        "Use crew:review on PR #3",
+    ]
     assert env["GH_TOKEN"] == TOKEN
     assert "GIT_CONFIG_COUNT" in env
 

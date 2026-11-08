@@ -13,6 +13,8 @@ import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
+from crew.usage import USAGE_FILE_ENV, usage_path
+
 ROLES = ("lead", "architect", "designer", "implementer", "reviewer")
 TOKEN_FILE_ENV = "CREW_AGENT_TOKEN_FILE"
 DEFAULT_TOKEN_FILE = "~/.config/crew/agent-token"
@@ -28,6 +30,9 @@ PLUGIN_INSTALL = (
     " && claude plugin install crew@agent-crew"
 )
 PLUGIN_PREFIX = "crew@"
+STATUS_LINE_SETTINGS = json.dumps(
+    {"statusLine": {"type": "command", "command": "crew usage record"}}
+)
 
 # Seams for tests: how ``gh`` is run and how the session replaces this process.
 RUN = subprocess.run
@@ -200,6 +205,9 @@ def agent_env(
     env = _without_cleared(base)
     env["GH_TOKEN"] = token
     env["GH_CONFIG_DIR"] = str(gh_config_dir)
+    # Pinned here, so the status line writes where crew run reads, whatever the session's
+    # launcher does to CLAUDE_CONFIG_DIR.
+    env[USAGE_FILE_ENV] = str(usage_path(base))
     env["GIT_SSH_COMMAND"] = SSH_REFUSED
     settings = [
         ("user.name", login),
@@ -231,13 +239,17 @@ def _without_cleared(base: Mapping[str, str]) -> dict[str, str]:
     return {key: value for key, value in base.items() if key not in CLEARED_VARS}
 
 
-def agent_argv(role: str, prompt: str | None, model: str | None) -> list[str]:
+def agent_argv(role: str, prompt: str | None, model: str | None, auto: bool = False) -> list[str]:
     """The ``claude`` command line for ``role``.
+
+    The session's status line is always ``crew usage record``, which stores the usage
+    reading for ``crew budget`` and ``crew run``.
 
     Args:
         role: one of ``ROLES``.
         prompt: the first message, or None to start without one.
         model: a model override, or None for the agent definition's model.
+        auto: run in Claude Code's auto permission mode.
 
     Returns:
         The argv, starting with ``claude``.
@@ -250,6 +262,9 @@ def agent_argv(role: str, prompt: str | None, model: str | None) -> list[str]:
     argv = ["claude", "--agent", f"crew:{role}"]
     if model:
         argv += ["--model", model]
+    if auto:
+        argv += ["--permission-mode", "auto"]
+    argv += ["--settings", STATUS_LINE_SETTINGS]
     if prompt:
         argv.append(prompt)
     return argv
@@ -297,6 +312,7 @@ def run_agent(
     owner_login: str,
     check: bool,
     root: Path,
+    auto: bool = False,
 ) -> None:
     """Verify the agents' identity, then print it (``check``) or replace this process.
 
@@ -308,11 +324,12 @@ def run_agent(
         owner_login: the owner's login; a token of this account is always refused.
         check: print the identity and launch nothing.
         root: the session's working directory.
+        auto: run in Claude Code's auto permission mode.
 
     Raises:
         AgentError: bad role, bad token, a token of another account, or no ``claude``.
     """
-    argv = agent_argv(role, prompt, model)
+    argv = agent_argv(role, prompt, model, auto)
     plugin = plugin_installed(os.environ, root)
     if plugin is False:
         raise AgentError(f"the crew plugin is not installed; install it with: {PLUGIN_INSTALL}")

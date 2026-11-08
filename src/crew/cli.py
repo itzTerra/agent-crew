@@ -106,8 +106,19 @@ def build_parser() -> argparse.ArgumentParser:
     agent.add_argument(
         "--check", action="store_true", help="print the identity the agent would use; start nothing"
     )
+    agent.add_argument(
+        "--auto", action="store_true", help="run in Claude Code's auto permission mode"
+    )
     agent.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     agent.set_defaults(handler=_cmd_agent)
+
+    usage = commands.add_parser("usage", help="show the latest weekly usage reading")
+    usage_commands = usage.add_subparsers(dest="usage_command", metavar="<action>")
+    record = usage_commands.add_parser(
+        "record", help="the agents' status-line command: store the reading from stdin"
+    )
+    record.set_defaults(handler=_cmd_usage_record)
+    usage.set_defaults(handler=_cmd_usage)
     return parser
 
 
@@ -339,7 +350,26 @@ def _cmd_agent(args: argparse.Namespace) -> int:
         config.owner_login,
         args.check,
         args.root,
+        args.auto,
     )
+    return EXIT_OK
+
+
+def _cmd_usage(args: argparse.Namespace) -> int:
+    from crew.usage import read_usage, usage_line, usage_path
+
+    print(usage_line(read_usage(usage_path(os.environ)), datetime.now(UTC)))
+    return EXIT_OK
+
+
+def _cmd_usage_record(args: argparse.Namespace) -> int:
+    from crew.usage import NO_DATA, record_statusline, usage_path
+
+    try:
+        payload = sys.stdin.read()
+        print(record_statusline(payload, usage_path(os.environ), datetime.now(UTC)))
+    except Exception:  # noqa: BLE001 — a status-line command must never fail
+        print(NO_DATA)
     return EXIT_OK
 
 

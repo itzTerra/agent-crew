@@ -429,7 +429,7 @@ task here.
 No code. Write the results into a `## Platform findings` section at the end of this plan. Then
 adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
 
-- [ ] **Step 1: Weekly usage.** Start one session with a status line that dumps its input:
+- [x] **Step 1: Weekly usage.** Start one session with a status line that dumps its input:
   `claude --settings '{"statusLine":{"type":"command","command":"cat > <scratch>/statusline.json"}}'`.
   Send one message, then read the file. Record whether `rate_limits.seven_day.used_percentage`,
   `rate_limits.seven_day.resets_at`, `rate_limits.five_hour.used_percentage` and
@@ -437,7 +437,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   **Gate:** if no weekly reading exists, stop here. Propose an alternative to the owner (for example
   a manually entered usage figure, or agent-hours as the budget) and wait for the decision before
   Task 10.
-- [ ] **Step 2: Agents in herdr.**
+- [x] **Step 2: Agents in herdr.**
   1. Run `herdr workspace create --cwd <repo> --label crew-check --no-focus` and record the JSON path
      of the workspace id.
   2. Run `herdr tab create --workspace <id> --cwd <repo> --label t --no-focus` and record the path of
@@ -448,10 +448,10 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
      herdr detects the `claude` started through `crew agent` (`agent_status` and its path in the
      JSON), and the statuses seen after `herdr agent prompt <pane> "Say hi"`.
   5. Close the workspace's panes.
-- [ ] **Step 3: Launch flags.** Check that `claude --agent crew:lead --permission-mode auto --settings
+- [x] **Step 3: Launch flags.** Check that `claude --agent crew:lead --permission-mode auto --settings
   '<json>' "hi"` starts, and that the `--settings` status line replaces the user's own only in that
   session.
-- [ ] **Step 4:** Commit the findings with this plan: `docs: record platform findings for the supervisor`.
+- [x] **Step 4:** Commit the findings with this plan: `docs: record platform findings for the supervisor`.
   The commit is folded into Task 10's commit when the history is cleaned up.
 
 ### Task 10: Usage readings and agent launch flags
@@ -492,7 +492,7 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
     agent session has drawn its status line` (exit 0).
   - `crew agent … --auto`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_record_statusline_writes_reading`: a payload in the shape found in Task 9, with both `resets_at`
     formats (epoch and ISO) → the file holds the values, the text matches the format above.
   - `test_record_statusline_without_rate_limits`: no file written, text `crew · no usage data`.
@@ -501,10 +501,10 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
     `CREW_USAGE_FILE` wins.
   - `test_is_fresh`: 29 minutes old → True; 31 → False; None → False.
   - `test_agent_argv_settings_and_auto`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: record weekly usage from the agents' status line`.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: record weekly usage from the agents' status line`.
 
 ### Task 11: This week's budget (`crew budget`)
 
@@ -962,3 +962,49 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
 - [ ] **Step 6:** Commit `feat: add run and budget skills and document automated runs`. With the
   owner's go-ahead, push, tag `v0.3.0` and push the tag.
 
+
+## Platform findings
+
+Checked on Claude Code 2.1 and the herdr CLI of the same day.
+
+**Weekly usage (gate passes).** The status-line input has no `rate_limits` before the session's
+first reply. After it:
+
+```json
+"rate_limits": {
+  "five_hour": {"used_percentage": 10, "resets_at": 1794198000},
+  "seven_day": {"used_percentage": 44, "resets_at": 1794567600}
+}
+```
+
+`used_percentage` is a whole number and `resets_at` is epoch seconds. Task 10 still accepts ISO
+8601 and floats, in case that changes.
+
+**herdr JSON paths.**
+- `herdr workspace create` → `result.workspace.workspace_id`.
+- `herdr tab create` → `result.root_pane.pane_id`.
+- `herdr agent get <pane>` → `result.agent.agent_status`. Statuses seen: `unknown` (just after
+  `claude` starts, before herdr has classified it), `blocked` (a dialog waits for input),
+  `working`, `idle`, `done` (finished a turn).
+- Failures exit 1 with `{"error": {"code": …, "message": …}}` on stderr. No agent in the pane:
+  `agent_not_found`. Pane gone: `pane_not_found` (also from `pane read` and `pane close`).
+- herdr detects the `claude` that `crew agent` execs (`result.agent.agent` is `claude`).
+- `herdr agent prompt` returns at once, without waiting for the turn.
+
+**Launch flags.** `claude --agent crew:<role> --permission-mode auto --settings '<json>' "<prompt>"`
+starts, and the `--settings` status line applies to that session only; the user's settings file is
+unchanged.
+
+**Folder trust.** `claude` in a folder it has never seen shows the "trust this folder" dialog,
+which herdr reports as `blocked`. Trust is kept per git root (`projects.<path>.hasTrustDialogAccepted`
+in `.claude.json`) and carries over to plain subfolders, but not to a nested repo or a git
+worktree, which are their own roots. A run therefore sets that flag for each worktree it creates.
+
+**Plugin scope.** `installed_plugins.json` entries are lists of installs, each with a `scope`
+(`user`, `project` or `local`) and, for the last two, a `projectPath`. A crew plugin installed
+for one project only is not loaded elsewhere, yet the Task 2 check counted it. A launcher wrapper
+that filters plugins per profile must also let `crew` through.
+
+**Pane environment.** A herdr pane gets the herdr server's environment, not the caller's;
+`herdr tab create --env KEY=VALUE` sets variables in it. `crew run` passes its `CREW_*` and
+`CLAUDE_*` variables (but not `CLAUDECODE` or `CLAUDE_CODE_*`) and the usage file that way.
