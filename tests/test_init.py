@@ -60,3 +60,13 @@ def test_docs_workflow_pins_crew_version_and_needs_no_token(tmp_path):
     workflow = (tmp_path / ".github/workflows/crew-docs.yml").read_text(encoding="utf-8")
     assert f"git+https://github.com/itzTerra/agent-crew@v{__version__}" in workflow
     assert "secrets." not in workflow
+
+
+def test_init_prints_plugin_step(tmp_path, monkeypatch, capsys):
+    from crew.agent import PLUGIN_INSTALL
+
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "no-claude"))
+    argv = ["init", "--repo", "example/app", "--owner", "o", "--agent", "a"]
+    assert main([*argv, "--root", str(tmp_path / "p")]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[-1] == f"next: install the Claude Code plugin: {PLUGIN_INSTALL}"

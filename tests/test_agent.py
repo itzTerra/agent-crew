@@ -47,6 +47,7 @@ def project(tmp_path, monkeypatch):
     token_file.write_text(TOKEN + "\n")
     token_file.chmod(0o600)
     monkeypatch.setenv(agent.TOKEN_FILE_ENV, str(token_file))
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-config"))  # no registry
     fake_run, fake_exec = FakeRun(), FakeExec()
     monkeypatch.setattr(agent, "RUN", fake_run)
     monkeypatch.setattr(agent, "EXEC", fake_exec)
@@ -176,6 +177,7 @@ def test_check_never_prints_token(project, capsys):
         "gh config: isolated",
         f"git: {AGENT_LOGIN} {noreply_email(AGENT_LOGIN, AGENT_ID)}",
         "push: https via gh (ssh rewritten)",
+        "plugin: unknown (registry not found)",
     ]
     assert "SECRET" not in captured.out + captured.err
     assert fake_exec.calls == []
@@ -303,3 +305,69 @@ def test_check_prints_isolated_gh_config(project, capsys):
     root, *_ = project
     assert main(["agent", "lead", "--check", "--root", str(root)]) == 0
     assert "gh config: isolated" in capsys.readouterr().out.splitlines()
+
+
+def _registry(config_dir, plugins):
+    (config_dir / "plugins").mkdir(parents=True, exist_ok=True)
+    (config_dir / "plugins" / "installed_plugins.json").write_text(
+        json.dumps({"version": 2, "plugins": plugins})
+    )
+
+
+def test_plugin_installed_reads_registry(tmp_path):
+    env = {"CLAUDE_CONFIG_DIR": str(tmp_path)}
+    assert agent.plugin_installed(env) is None
+    _registry(tmp_path, {"other@x": []})
+    assert agent.plugin_installed(env) is False
+    _registry(tmp_path, {"crew@agent-crew": [{"scope": "user"}]})
+    assert agent.plugin_installed(env) is True
+    (tmp_path / "plugins" / "installed_plugins.json").write_text("[1, 2]")
+    assert agent.plugin_installed(env) is None
+
+
+def test_agent_without_plugin_prints_install_command(project, tmp_path, capsys):
+    root, token_file, fake_run, fake_exec = project
+    _registry(tmp_path / "claude-config", {"other@x": []})
+    token_file.unlink()
+    assert main(["agent", "lead", "--root", str(root)]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("crew: error: ") and err.count("\n") == 1
+    assert "crew plugin is not installed" in err and agent.PLUGIN_INSTALL in err
+    assert fake_exec.calls == [] and fake_run.calls == []
+
+
+def test_check_reports_installed_plugin(project, tmp_path, capsys):
+    root, *_ = project
+    _registry(tmp_path / "claude-config", {"crew@agent-crew": [{"scope": "user"}]})
+    assert main(["agent", "lead", "--check", "--root", str(root)]) == 0
+    assert capsys.readouterr().out.splitlines()[-1] == "plugin: crew installed"
+
+
+def test_plugin_installed_honours_project_scope(tmp_path):
+    env = {"CLAUDE_CONFIG_DIR": str(tmp_path)}
+    project = tmp_path / "app"
+    entry = {"scope": "project", "projectPath": str(project)}
+    _registry(tmp_path, {"crew@agent-crew": [entry]})
+    assert agent.plugin_installed(env, tmp_path / "other") is False
+    assert agent.plugin_installed(env, project) is True
+    assert agent.plugin_installed(env, project / ".crew" / "worktrees" / "unit-3") is True
+    assert agent.plugin_installed(env, tmp_path / "app2") is False
+
+
+def test_plugin_enabled_by_project_settings(tmp_path):
+    env = {"CLAUDE_CONFIG_DIR": str(tmp_path / "config")}
+    entry = {"scope": "project", "projectPath": str(tmp_path / "elsewhere")}
+    _registry(tmp_path / "config", {"crew@agent-crew": [entry]})
+    project = tmp_path / "sandbox"
+    (project / ".claude").mkdir(parents=True)
+    worktree = project / ".crew" / "worktrees" / "unit-1"
+    assert agent.plugin_installed(env, project) is False
+    (project / ".claude" / "settings.json").write_text(
+        json.dumps({"enabledPlugins": {"crew@agent-crew": True}})
+    )
+    assert agent.plugin_installed(env, project) is True
+    assert agent.plugin_installed(env, worktree) is True
+    (project / ".claude" / "settings.json").write_text(
+        json.dumps({"enabledPlugins": {"crew@agent-crew": False}})
+    )
+    assert agent.plugin_installed(env, project) is False

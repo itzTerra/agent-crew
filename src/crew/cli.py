@@ -5,6 +5,7 @@ Document or ready findings exit 1; success exits 0.
 """
 
 import argparse
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -135,6 +136,10 @@ def _cmd_init(args: argparse.Namespace) -> int:
         print(f"wrote {path.relative_to(args.root).as_posix()}")
     if not written:
         print("nothing to write: every crew file already exists")
+    from crew.agent import PLUGIN_INSTALL, plugin_installed
+
+    if plugin_installed(os.environ, args.root) is not True:
+        print(f"next: install the Claude Code plugin: {PLUGIN_INSTALL}")
     return EXIT_OK
 
 

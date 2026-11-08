@@ -160,7 +160,7 @@ task here.
       # None if the file is missing or has another shape (the check is then skipped)
   ```
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_plugin_installed_reads_registry`: a fake config dir with `{"plugins": {"crew@agent-crew": []}}`
     → `True`; with only `other@x` → `False`; no file → `None`.
   - `test_agent_without_plugin_prints_install_command`: registry without `crew@…` → exit 2, stderr one line
@@ -168,13 +168,13 @@ task here.
     not read (the token file may be absent in this test).
   - `test_init_prints_plugin_step`: `crew init` output ends with the line
     `next: install the Claude Code plugin: <PLUGIN_INSTALL>` when `plugin_installed` is not `True`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement. `run_agent` calls `plugin_installed(os.environ)` right after the role
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement. `run_agent` calls `plugin_installed(os.environ)` right after the role
   check and raises `AgentError` only on `False`. `--check` prints `plugin: crew installed` or
   `plugin: unknown (registry not found)`. In the README's "Set up a project", put the plugin install
   first as a numbered step, then `crew init`, then `crew labels sync`.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: check the crew plugin is installed before starting an agent`.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: check the crew plugin is installed before starting an agent`.
 
 ### Task 3: Requirements tables need a Why column (R14)
 

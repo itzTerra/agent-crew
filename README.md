@@ -36,12 +36,24 @@ claude plugin install crew@agent-crew
 
 ## Set up a project
 
-In the project's repo:
+1. Install the Claude Code plugin, if you haven't (`crew agent` refuses to start without it):
 
-```sh
-crew init --repo <owner>/<name> --owner <your-github-login> --agent <agents-github-login>
-crew labels sync
-```
+   ```sh
+   claude plugin marketplace add https://github.com/itzTerra/agent-crew
+   claude plugin install crew@agent-crew
+   ```
+
+2. In the project's repo, write the crew files:
+
+   ```sh
+   crew init --repo <owner>/<name> --owner <your-github-login> --agent <agents-github-login>
+   ```
+
+3. Create the labels:
+
+   ```sh
+   crew labels sync
+   ```
 
 `crew init` writes only files that don't exist yet:
 

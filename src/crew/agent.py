@@ -23,6 +23,12 @@ CLEARED_VARS = ("GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"
 # Every ssh transport refuses, so no URL form, alias or pushInsteadOf can reach the owner's key.
 SSH_REFUSED = "sh -c 'echo \"crew: ssh disabled for agent sessions; push over https\" >&2; exit 1'"
 
+PLUGIN_INSTALL = (
+    "claude plugin marketplace add https://github.com/itzTerra/agent-crew"
+    " && claude plugin install crew@agent-crew"
+)
+PLUGIN_PREFIX = "crew@"
+
 # Seams for tests: how ``gh`` is run and how the session replaces this process.
 RUN = subprocess.run
 EXEC = os.execvpe
@@ -76,6 +82,71 @@ def read_token(path: Path) -> str:
     if not token:
         raise AgentError(f"the agents' token file {path} is empty")
     return token
+
+
+def plugin_installed(env: Mapping[str, str], root: Path | None = None) -> bool | None:
+    """Whether Claude Code's plugin registry has the crew plugin for sessions in ``root``.
+
+    A user-scope install counts anywhere; a project or local install counts when its
+    project is ``root`` or a folder above it (a run's worktrees sit inside the project), or
+    when ``.claude/settings.json`` there enables the plugin.
+
+    Args:
+        env: the environment to read ``CLAUDE_CONFIG_DIR`` from (default ``~/.claude``).
+        root: where the session will run; None counts every install.
+
+    Returns:
+        True or False from ``plugins/installed_plugins.json``; None when that file is
+        missing or has another shape, so the check can be skipped.
+    """
+    config_dir = Path(env.get("CLAUDE_CONFIG_DIR") or "~/.claude").expanduser()
+    try:
+        data = json.loads((config_dir / "plugins" / "installed_plugins.json").read_text("utf-8"))
+    except (OSError, ValueError):
+        return None
+    plugins = data.get("plugins") if isinstance(data, dict) else None
+    if not isinstance(plugins, dict):
+        return None
+    keys = [str(key) for key in plugins if str(key).startswith(PLUGIN_PREFIX)]
+    for key in keys:
+        installs = plugins[key]
+        if not isinstance(installs, list):
+            return True  # an older registry shape without scopes
+        if any(_install_covers(install, root) for install in installs):
+            return True
+    # Installed for another project, but enabled in this one's own settings.
+    return bool(keys) and root is not None and _enabled_in_settings(root, set(keys))
+
+
+def _enabled_in_settings(root: Path, keys: set[str]) -> bool:
+    """Whether ``root`` or a folder above it enables one of ``keys`` in .claude/settings*."""
+    target = root.expanduser().resolve()
+    for folder in (target, *target.parents):
+        for name in ("settings.local.json", "settings.json"):
+            try:
+                data = json.loads((folder / ".claude" / name).read_text("utf-8"))
+            except (OSError, ValueError):
+                continue
+            enabled = data.get("enabledPlugins") if isinstance(data, dict) else None
+            if isinstance(enabled, dict):
+                values = [enabled[key] for key in keys if key in enabled]
+                if values:
+                    return values[0] is True
+    return False
+
+
+def _install_covers(install: object, root: Path | None) -> bool:
+    if not isinstance(install, dict):
+        return False
+    scope = install.get("scope", "user")
+    if scope == "user" or root is None:
+        return True
+    project = install.get("projectPath")
+    if not project:
+        return False
+    project_path = Path(str(project)).expanduser().resolve()
+    target = root.expanduser().resolve()
+    return target == project_path or project_path in target.parents
 
 
 def noreply_email(login: str, user_id: int) -> str:
@@ -242,6 +313,9 @@ def run_agent(
         AgentError: bad role, bad token, a token of another account, or no ``claude``.
     """
     argv = agent_argv(role, prompt, model)
+    plugin = plugin_installed(os.environ, root)
+    if plugin is False:
+        raise AgentError(f"the crew plugin is not installed; install it with: {PLUGIN_INSTALL}")
     token = read_token(token_path(os.environ))
     login, user_id = whoami(token, run=RUN)
     if login.casefold() == owner_login.casefold():
@@ -266,6 +340,7 @@ def run_agent(
         print("gh config: isolated")
         print(f"git: {login} {noreply_email(login, user_id)}")
         print(CHECK_PUSH_LINE)
+        print("plugin: crew installed" if plugin else "plugin: unknown (registry not found)")
         return
     os.chdir(root)
     try:
