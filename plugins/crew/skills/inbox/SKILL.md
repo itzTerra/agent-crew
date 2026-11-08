@@ -18,6 +18,7 @@ Run by the lead, with the owner.
    - **decision:** show the question comment and its options; record the owner's choice;
    - **stuck:** show the reviewer's summary; the owner decides how to unstick it;
    - **proposal:** run the pitch challenge with the `crew:pitch` skill.
+   When presenting an item, give its URL as `crew inbox` printed it, not only `#N`.
 3. Offer to act on each item, one at a time:
    - open the PR or issue (`gh pr view N --web`, `gh issue view N --web`);
    - relay the owner's feedback with the `crew:relay` skill;

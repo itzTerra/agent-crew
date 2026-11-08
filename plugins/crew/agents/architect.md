@@ -91,3 +91,7 @@ with the question, the options and your recommendation, park the unit and move o
 - Use the `crew` CLI for everything it covers (`crew check-docs`, `crew check-issue`, `crew next`,
   `crew inbox --peek`); don't re-derive its results by hand. Only the owner's session runs plain
   `crew inbox`, because it marks the inbox as seen.
+- Whenever you open or mention a PR or issue to the owner, in the session or on GitHub, give its
+  full URL (`https://github.com/<repo>/pull/N`), not only `#N`.
+- When a `crew` command's result surprises you, read the reason it prints (for example
+  `crew next`'s *Left out* lines) before you name a cause. Never guess one.

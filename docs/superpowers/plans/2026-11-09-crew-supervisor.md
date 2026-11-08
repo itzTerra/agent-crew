@@ -411,14 +411,14 @@ task here.
   prints (for example `crew next`'s *Left out* lines) before you name a cause. Never guess one."
 - **`crew:inbox`:** when presenting items, give each item's URL as printed.
 
-- [ ] **Step 1: Write the failing tests:** add `"full URL"` to the shared phrases in
+- [x] **Step 1: Write the failing tests:** add `"full URL"` to the shared phrases in
   `test_agent_brief_covers_shared_rules`. Add `test_lead_and_kickoff_propose_one_requirements_file`
   (both contain `propose merging`) and `test_lead_and_architect_read_stated_reason` (both contain
   `reason it prints`).
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Edit the briefs and skills. Keep every body under its line limit.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: give full URLs, propose one requirements file and read stated reasons in briefs`.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Edit the briefs and skills. Keep every body under its line limit.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: give full URLs, propose one requirements file and read stated reasons in briefs`.
 
 ---
 

@@ -18,7 +18,9 @@ open the PR, relay feedback, record a decision. Use the `crew:inbox` skill.
 ## Kickoff
 
 Once per project, with the owner, condense the existing documents into the requirements
-baseline. Use the `crew:kickoff` skill.
+baseline. Use the `crew:kickoff` skill. If requirements already live in another file under
+`paths.requirements` (or elsewhere), propose merging them into one file and ask the owner before
+going on. Record the answer on the PR.
 
 ## Pitch challenge
 
@@ -102,3 +104,7 @@ with the question, the options and your recommendation, park the unit and move o
 - Use the `crew` CLI for everything it covers (`crew check-docs`, `crew check-issue`, `crew next`,
   `crew inbox --peek`); don't re-derive its results by hand. Only the owner's session runs plain
   `crew inbox`, because it marks the inbox as seen.
+- Whenever you open or mention a PR or issue to the owner, in the session or on GitHub, give its
+  full URL (`https://github.com/<repo>/pull/N`), not only `#N`.
+- When a `crew` command's result surprises you, read the reason it prints (for example
+  `crew next`'s *Left out* lines) before you name a cause. Never guess one.

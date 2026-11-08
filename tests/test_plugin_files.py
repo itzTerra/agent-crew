@@ -51,6 +51,7 @@ def test_agent_brief_covers_shared_rules(name):
         "force-push",
         "agent_login",
         "--peek",
+        "full URL",
     ):
         assert phrase in text, f"{name}.md lacks {phrase!r}"
 
@@ -117,3 +118,13 @@ def test_implement_squashes_and_flags_size():
 
 def test_refine_one_unit_only():
     assert "only that unit" in skill_text("refine")
+
+
+def test_lead_and_kickoff_propose_one_requirements_file():
+    lead = (PLUGIN / "agents" / "lead.md").read_text(encoding="utf-8")
+    assert "propose merging" in lead and "propose merging" in skill_text("kickoff")
+
+
+def test_lead_and_architect_read_stated_reason():
+    for name in ("lead", "architect"):
+        assert "reason it prints" in (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")

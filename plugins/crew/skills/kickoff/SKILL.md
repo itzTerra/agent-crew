@@ -16,6 +16,10 @@ which of them are still current.
 
 ## 2. Write the baseline
 
+If requirements already live in another file under `paths.requirements` (or elsewhere),
+propose merging them into one file and ask the owner before going on. Record the answer on the
+PR.
+
 Write `docs/requirements/baseline.md` with:
 
 - **Goals:** what the product is for and how success is judged;
