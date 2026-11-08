@@ -62,6 +62,19 @@ def build_parser() -> argparse.ArgumentParser:
     sync = label_commands.add_parser("sync", help="create or update the crew labels on GitHub")
     sync.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     sync.set_defaults(handler=_cmd_labels_sync)
+    set_state = label_commands.add_parser(
+        "set-state", help="move an issue and its PRs (or a PR and its issue) to one state"
+    )
+    set_state.add_argument("number", type=int, help="issue or PR number")
+    set_state.add_argument("state", help="rough, ready, in-progress, in-review, …, or done")
+    set_state.add_argument(
+        "--root", type=Path, default=Path.cwd(), help="project root (default: .)"
+    )
+    set_state.set_defaults(handler=_cmd_labels_set_state)
+    check = label_commands.add_parser("check", help="find state labels that disagree")
+    check.add_argument("--fix", action="store_true", help="remove labels left on closed items")
+    check.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    check.set_defaults(handler=_cmd_labels_check)
 
     inbox = commands.add_parser("inbox", help="show what is waiting on the owner")
     inbox.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
@@ -106,6 +119,46 @@ def _cmd_labels_sync(args: argparse.Namespace) -> int:
     if not written:
         print("labels already up to date")
     return EXIT_OK
+
+
+def _cmd_labels_set_state(args: argparse.Namespace) -> int:
+    from crew.labels import DONE, STATES, set_state
+
+    if args.state not in STATES:
+        raise CliError(f"unknown state {args.state!r}; choose one of {', '.join(STATES)}")
+    config = load_config(args.root)
+    shown = "done" if args.state == DONE else f"crew:{args.state}"
+    for number in set_state(make_github(config.repo), args.number, args.state):
+        print(f"#{number}: {shown}")
+    return EXIT_OK
+
+
+def _fetch_label_problems(github: GitHub, open_issues=None, open_prs=None, merged=None):
+    from crew.labels import label_problems
+
+    return label_problems(
+        github.list_issues("open") if open_issues is None else open_issues,
+        github.list_issues("closed"),
+        github.list_prs("open") if open_prs is None else open_prs,
+        github.list_prs("merged") if merged is None else merged,
+    )
+
+
+def _cmd_labels_check(args: argparse.Namespace) -> int:
+    config = load_config(args.root)
+    github = make_github(config.repo)
+    problems = _fetch_label_problems(github)
+    left = 0
+    for problem in problems:
+        print(f"#{problem.number}: {problem.message}")
+        if args.fix and problem.fix_remove:
+            github.set_labels(problem.number, [], list(problem.fix_remove))
+            print(f"fixed #{problem.number}")
+        else:
+            left += 1
+    if not problems:
+        print("no label problems")
+    return EXIT_FINDINGS if left else EXIT_OK
 
 
 def _report(findings: list[Finding], root: Path) -> int:
@@ -161,7 +214,8 @@ def _cmd_inbox(args: argparse.Namespace) -> int:
     config = load_config(args.root)
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     github = make_github(config.repo)
-    units = build_units(github.list_issues("open"))
+    open_issues = github.list_issues("open")
+    units = build_units(open_issues)
     open_prs = github.list_prs("open")
     merged = github.list_prs("merged")
     state = read_state(args.root)
@@ -183,6 +237,12 @@ def _cmd_inbox(args: argparse.Namespace) -> int:
         print("  nothing")
 
     _print_cycles(find_cycles(units))
+    problems = _fetch_label_problems(github, open_issues, open_prs, merged)
+    if problems:
+        print()
+        print("Label problems")
+        for problem in problems:
+            print(f"  #{problem.number}: {problem.message}")
     if not args.peek:
         try:
             write_state(args.root, {**state, "last_inbox": now})

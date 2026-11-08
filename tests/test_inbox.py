@@ -80,7 +80,7 @@ class FakeGitHub:
         self.issues, self.open_prs, self.merged_prs = issues, open_prs, merged_prs
 
     def list_issues(self, state="open"):
-        return self.issues
+        return [] if state == "closed" else self.issues
 
     def list_prs(self, state="open"):
         return self.merged_prs if state == "merged" else self.open_prs

@@ -41,6 +41,11 @@ class GitHub:
         data = self._json("issue", "view", str(number), "--repo", self.repo, "--json", "body")
         return data.get("body") or ""
 
+    def labels_of(self, number: int) -> set[str]:
+        """Label names on issue or PR ``number``."""
+        data = self._json("api", f"repos/{self.repo}/issues/{number}")
+        return {label["name"] for label in (data.get("labels") or [])}
+
     def ensure_labels(self, labels: list[Label]) -> list[str]:
         """Create missing labels and update changed ones; return the names written."""
         existing = {

@@ -282,7 +282,7 @@ task here.
   - `crew inbox` (with or without `--peek`) prints a `Label problems` block after the cycles when
     there are any.
 
-- [ ] **Step 1: Write the failing tests**, with the fake `run` from `tests/test_github.py`:
+- [x] **Step 1: Write the failing tests**, with the fake `run` from `tests/test_github.py`:
   - `test_set_state_moves_issue_and_pr_together`: issue 5 with `crew:in-review`, open PR 9 closing #5 with
     `crew:owner-accept` → `set_state(gh, 9, "in-review")` removes `crew:owner-accept` from 9, adds
     `crew:in-review` to 9, leaves 5's `crew:in-review`, and returns `[5, 9]`. Assert no DELETE call for
@@ -293,11 +293,11 @@ task here.
   - `test_label_problems_kinds`: one example per problem kind; assert messages and `fix_remove`.
   - `test_labels_check_fix_cli`: exit 0 after `--fix` when only fixable problems exist; exit 1 otherwise.
   - `test_inbox_lists_label_problems`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement. `crew inbox` fetches closed issues too (`list_issues("closed")`).
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement. `crew inbox` fetches closed issues too (`list_issues("closed")`).
   Reject an unknown state with `CliError` listing `STATES`.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: move issue and PR state labels together and check their consistency`.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: move issue and PR state labels together and check their consistency`.
 
 ### Task 6: `crew check-owns` (R3)
 
