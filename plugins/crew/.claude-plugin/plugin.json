@@ -1,0 +1,9 @@
+{
+  "name": "crew",
+  "version": "0.1.0",
+  "description": "Role agents (lead, architect, designer, implementer, reviewer) and skills for a small agent crew that works from GitHub issues, with an owner inbox and document checks.",
+  "author": {
+    "name": "itzTerra"
+  },
+  "license": "MIT"
+}

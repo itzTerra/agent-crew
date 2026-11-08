@@ -1,0 +1,17 @@
+{
+  "name": "agent-crew",
+  "description": "The crew plugin: an agent crew for Claude Code that works from GitHub issues.",
+  "owner": {
+    "name": "itzTerra"
+  },
+  "plugins": [
+    {
+      "name": "crew",
+      "source": "./plugins/crew",
+      "description": "Role agents and skills for a small agent crew that works from GitHub issues.",
+      "author": {
+        "name": "itzTerra"
+      }
+    }
+  ]
+}
