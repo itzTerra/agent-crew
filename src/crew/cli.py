@@ -37,6 +37,13 @@ def build_parser() -> argparse.ArgumentParser:
     docs.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     docs.add_argument("--strict", action="store_true", help="treat uncited requirements as errors")
     docs.set_defaults(handler=_cmd_check_docs)
+
+    issue = commands.add_parser("check-issue", help="check a unit against the Definition of Ready")
+    source = issue.add_mutually_exclusive_group(required=True)
+    source.add_argument("--number", type=int, help="issue number on GitHub")
+    source.add_argument("--file", type=Path, help="a file holding the issue body")
+    issue.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    issue.set_defaults(handler=_cmd_check_issue)
     return parser
 
 
@@ -63,6 +70,20 @@ def _cmd_init(args: argparse.Namespace) -> int:
     if not written:
         print("nothing to write: every crew file already exists")
     return EXIT_OK
+
+
+def _cmd_check_issue(args: argparse.Namespace) -> int:
+    from crew.units import check_unit
+
+    config = load_config(args.root)
+    if args.file is not None:
+        try:
+            body = args.file.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise CliError(f"cannot read {args.file}: {exc.strerror}") from None
+    else:
+        raise CliError("--number needs GitHub access, which is not available yet")
+    return _report(check_unit(body, args.root, config), args.root)
 
 
 def main(argv: list[str] | None = None) -> int:
