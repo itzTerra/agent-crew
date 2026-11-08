@@ -753,14 +753,14 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
     `git worktree add --track -b <branch> <path> origin/<branch>`.
   - Detached: `git worktree add --detach <path> origin/<branch>`.
 
-- [ ] **Step 1: Write the failing tests** with fake `run`s that record argv and return canned output:
+- [x] **Step 1: Write the failing tests** with fake `run`s that record argv and return canned output:
   `test_open_tab_returns_pane_id`, `test_status_none_when_pane_gone`, `test_herdr_failure_is_herdr_error`,
   `test_worktree_new_unit_branch`, `test_worktree_reuses_existing`, `test_worktree_tracks_remote_branch`,
   `test_worktree_detached_review_refreshes`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: drive herdr panes and unit worktrees for the supervisor`.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: drive herdr panes and unit worktrees for the supervisor`.
 
 ### Task 15: The run loop — start, track and finish agents
 
