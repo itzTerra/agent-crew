@@ -112,6 +112,15 @@ def build_parser() -> argparse.ArgumentParser:
     agent.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     agent.set_defaults(handler=_cmd_agent)
 
+    budget = commands.add_parser("budget", help="show or raise this week's budget cap")
+    change = budget.add_mutually_exclusive_group()
+    change.add_argument(
+        "--week", type=int, metavar="N", help="cap this week at N%% of the weekly limit (1-100)"
+    )
+    change.add_argument("--reset", action="store_true", help="go back to the default cap")
+    budget.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    budget.set_defaults(handler=_cmd_budget)
+
     usage = commands.add_parser("usage", help="show the latest weekly usage reading")
     usage_commands = usage.add_subparsers(dest="usage_command", metavar="<action>")
     record = usage_commands.add_parser(
@@ -353,6 +362,49 @@ def _cmd_agent(args: argparse.Namespace) -> int:
         args.auto,
     )
     return EXIT_OK
+
+
+def _cmd_budget(args: argparse.Namespace) -> int:
+    from crew.budget import OVERRIDE_KEY, effective_cap, week_override
+    from crew.config import BUDGET_MAX, BUDGET_MIN
+    from crew.state import read_state
+    from crew.usage import read_usage, usage_line, usage_path
+
+    config = load_config(args.root)
+    now = datetime.now(UTC)
+    reading = read_usage(usage_path(os.environ))
+    state = read_state(args.root)
+    if args.week is not None:
+        if not BUDGET_MIN <= args.week <= BUDGET_MAX:
+            raise CliError(f"--week must be {BUDGET_MIN}–{BUDGET_MAX}, got {args.week}")
+        if reading is None or reading.week_resets_at <= now:
+            raise CliError(
+                "no usage reading yet, so the week's reset time is unknown; "
+                "start any crew agent first"
+            )
+        state = {**state, OVERRIDE_KEY: week_override(args.week, reading)}
+        _write_state(args.root, state)
+    elif args.reset:
+        state = {k: v for k, v in state.items() if k != OVERRIDE_KEY}
+        _write_state(args.root, state)
+    percent, source = effective_cap(config, state, now)
+    if source == "default":
+        print(f"cap {percent}% (default)")
+    else:
+        until = datetime.fromisoformat(state[OVERRIDE_KEY]["until"])
+        local = until.astimezone().strftime("%a %H:%M")
+        print(f"cap {percent}% this week (until {local}), then {config.budget_cap_percent}%")
+    print(usage_line(reading, now))
+    return EXIT_OK
+
+
+def _write_state(root: Path, state: dict) -> None:
+    from crew.state import write_state
+
+    try:
+        write_state(root, state)
+    except OSError as exc:
+        raise CliError(f"cannot write .crew/state.json: {exc.strerror}") from None
 
 
 def _cmd_usage(args: argparse.Namespace) -> int:

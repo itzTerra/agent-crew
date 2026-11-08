@@ -528,13 +528,13 @@ adjust the constants and JSON paths that Tasks 10 and 14 name, if they differ.
   `crew: error: no usage reading yet, so the week's reset time is unknown; start any crew agent first`.
   `crew budget --reset` drops the override.
 
-- [ ] **Step 1: Write the failing tests:** `test_override_applies_until_week_reset`,
+- [x] **Step 1: Write the failing tests:** `test_override_applies_until_week_reset`,
   `test_override_expires_at_reset`, `test_week_needs_reading`, `test_week_out_of_range`,
   `test_budget_cli_output`.
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: add crew budget to raise this week's cap`.
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run `uv run pytest -v`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: add crew budget to raise this week's cap`.
 
 ### Task 12: GitHub snapshot and owner activity
 
