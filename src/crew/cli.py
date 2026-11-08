@@ -11,6 +11,7 @@ from pathlib import Path
 from crew import __version__
 from crew.config import ConfigError, load_config
 from crew.findings import Finding, has_errors
+from crew.github import GitHub, GitHubError
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -44,7 +45,30 @@ def build_parser() -> argparse.ArgumentParser:
     source.add_argument("--file", type=Path, help="a file holding the issue body")
     issue.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     issue.set_defaults(handler=_cmd_check_issue)
+
+    labels = commands.add_parser("labels", help="manage the crew label set")
+    label_commands = labels.add_subparsers(dest="labels_command", metavar="<action>")
+    sync = label_commands.add_parser("sync", help="create or update the crew labels on GitHub")
+    sync.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    sync.set_defaults(handler=_cmd_labels_sync)
     return parser
+
+
+def make_github(repo: str) -> GitHub:
+    """Build the GitHub client; a seam for tests."""
+    return GitHub(repo)
+
+
+def _cmd_labels_sync(args: argparse.Namespace) -> int:
+    from crew.labels import LABELS
+
+    config = load_config(args.root)
+    written = make_github(config.repo).ensure_labels(LABELS)
+    for name in written:
+        print(f"synced {name}")
+    if not written:
+        print("labels already up to date")
+    return EXIT_OK
 
 
 def _report(findings: list[Finding], root: Path) -> int:
@@ -82,7 +106,7 @@ def _cmd_check_issue(args: argparse.Namespace) -> int:
         except OSError as exc:
             raise CliError(f"cannot read {args.file}: {exc.strerror}") from None
     else:
-        raise CliError("--number needs GitHub access, which is not available yet")
+        body = make_github(config.repo).issue_body(args.number)
     return _report(check_unit(body, args.root, config), args.root)
 
 
@@ -98,6 +122,6 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_OK
     try:
         return handler(args)
-    except (CliError, ConfigError) as exc:
+    except (CliError, ConfigError, GitHubError) as exc:
         print(f"crew: error: {exc}", file=sys.stderr)
         return EXIT_ERROR
