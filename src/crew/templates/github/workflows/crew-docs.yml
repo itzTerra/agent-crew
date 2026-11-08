@@ -1,0 +1,13 @@
+name: crew docs
+
+on:
+  pull_request:
+
+jobs:
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv tool install git+https://github.com/itzTerra/agent-crew@v{version}
+      - run: crew check-docs

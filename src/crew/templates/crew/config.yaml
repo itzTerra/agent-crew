@@ -1,0 +1,26 @@
+# crew settings for this project. See the agent-crew README for every key.
+repo: {repo}                 # owner/name on GitHub
+owner_login: {owner}         # the product owner's GitHub login; only their input counts as the owner's
+agent_login: {agent}         # the GitHub login the agents use
+
+paths:
+  requirements: docs/requirements
+  specs: docs/specs
+  adr: docs/adr
+  pitches: docs/pitches
+  practices: CLAUDE.md       # the project's coding practices file
+
+budget_cap_percent: 75       # share of the weekly usage limit agents may use (1-100)
+max_agents: 2                # agents running at once (the work-in-progress limit)
+
+# Command that runs a branch locally; {branch} is replaced with the branch name.
+docker_run: ""
+
+# Names of the CI checks that must be green before review.
+ci_checks: []
+
+# Decisions reserved for the owner, in addition to the standard list.
+owner_decisions_extra: []
+
+# Merge rules (free text or a path to a file), read by the crew:merge skill.
+merge_rules: ""
