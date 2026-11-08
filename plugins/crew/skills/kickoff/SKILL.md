@@ -35,14 +35,16 @@ table format with stable IDs:
 Pri is `Must`, `Should` or `Later`. Requirements no living spec will cite (because a setting or a
 process covers them) get a `[covered: <how>]` marker.
 
-Commit it on a branch, open a PR labeled `crew:owner-accept` and `crew:owner-facing`, and run
-`crew check-docs` until it reports no errors. `XREF-UNCITED` warnings are expected while there
-are no living specs yet.
+Run `crew check-docs` until it reports no errors; `XREF-UNCITED` warnings are expected while
+there are no living specs yet. Then commit it on a branch and open a PR labeled
+`crew:owner-accept` and `crew:owner-facing`.
 
 ## 3. File the first decisions
 
-File the first owner decisions as issues labeled `crew:owner-decision`, each for the architect to
-prepare as a decision document:
+File the first owner decisions as issues labeled `crew:rough` and `crew:owner-facing`, each for
+the architect to prepare as a decision document. They reach the owner's inbox only when the
+decision document's PR exists and is labeled `crew:owner-decision`, so the owner is never asked
+to decide before the options are written:
 
 - the architecture and stack ADRs (languages, frameworks, storage, hosting);
 - the operations and checks setup (CI, Docker, test and lint tools);

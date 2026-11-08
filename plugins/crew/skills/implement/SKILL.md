@@ -12,9 +12,9 @@ Run by the implementer on one ready issue `#N`.
 1. Read the issue, everything it links to, `.crew/config.yaml` and the practices file.
 2. Check that it still meets the definition of ready: `crew check-issue --number N`. If not, or
    if a dependency is still open, stop and comment why.
-3. Create a worktree on branch `unit/<N>-<slug>`:
-   `herdr worktree create` when running in herdr, otherwise
-   `git worktree add ../<repo>-unit-<N> -b unit/<N>-<slug> origin/main`.
+3. Fetch first (`git fetch origin`), so the branch starts from the latest `main`. Then create a
+   worktree on branch `unit/<N>-<slug>`: `herdr worktree create` when running in herdr,
+   otherwise `git worktree add ../<repo>-unit-<N> -b unit/<N>-<slug> origin/main`.
 4. Set `crew:in-progress`:
    `gh issue edit N --add-label crew:in-progress --remove-label crew:ready`.
 

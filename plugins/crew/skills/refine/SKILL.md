@@ -9,9 +9,9 @@ Run by the architect (or the lead) in refinement mode.
 
 ## Pick
 
-List the rough units (`gh issue list --label crew:rough`). Refine them in the order the
-workers will need them: do-first units first, then the ones that block the most other work
-(`crew inbox --peek` and `crew next` show the same ordering). Refine a few ahead, not the whole backlog.
+Run `crew next --rough`: it lists the rough units in the order the workers will need them
+(do-first, then the ones that block the most other work, then the oldest), leaving out units
+that wait on the owner. Take them from the top. Refine a few ahead, not the whole backlog.
 
 ## Per unit
 

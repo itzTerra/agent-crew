@@ -31,7 +31,9 @@ Check that the tree and the tests are unchanged by the squash, then push with
 
 ## 3. Merge
 
-Wait for CI to be green again (`gh pr checks P --watch`). Then merge:
+Wait for CI to be green again (`gh pr checks P --watch`). Then merge **from the main checkout,
+not from the unit's worktree**: `--delete-branch` makes gh switch the local checkout to `main`,
+which fails inside a worktree while `main` is checked out elsewhere.
 
 - `gh pr merge P --rebase --delete-branch`, or
 - `gh pr merge P --squash --delete-branch` when the history is a single commit anyway.

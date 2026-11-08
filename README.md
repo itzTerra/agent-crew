@@ -86,13 +86,19 @@ crew labels sync
 | `crew check-docs [--strict]` | Check requirements, living specs, ADRs and pitches, and the references between them |
 | `crew check-issue (--number N \| --file PATH)` | Check a unit against the definition of ready |
 | `crew inbox [--peek]` | What waits on the owner, what merged without them, and dependency cycles; marks the inbox as seen unless `--peek` |
-| `crew next` | The ready units in the order workers should take them, and dependency cycles |
+| `crew next [--rough]` | The ready units in the order workers should take them, and dependency cycles; with `--rough`, the rough units in refinement order |
 
 Every command takes `--root PATH` (default: the current directory). Exit codes: 0 success,
 1 findings, 2 error (one line on stderr: `crew: error: <message>`). Findings print as
 `<path>:<line>: <CODE> <message>`; warnings as `<path>:<line>: warning: <CODE> <message>`.
 
 ## Running the crew by hand
+
+**Agents work under their own GitHub login** (`agent_login`), not yours. Run their sessions with
+that account's `gh` auth, for example `GH_TOKEN=<agents' token> claude --agent …`, or a separate
+`gh auth login` in their shell. Under your account, PRs the agents open are yours, so you can't
+approve them (GitHub forbids approving your own PR) and owner-facing units can never be merged;
+it also makes your input and the agents' indistinguishable.
 
 Automated runs come in a later version. Until then you start the agents yourself, for example in
 herdr panes, one per agent.
