@@ -125,7 +125,7 @@ task here.
   def run_agent(role, prompt, model, agent_login, owner_login, check, root: Path) -> None
   ```
 
-- [ ] **Step 1: Write the failing tests** in `tests/test_agent.py`:
+- [x] **Step 1: Write the failing tests** in `tests/test_agent.py`:
   - `test_gh_config_dir_isolated`: `env["GH_CONFIG_DIR"]` is set, differs from any `GH_CONFIG_DIR` in
     `base`, exists, is empty and has mode `0o700`. Two `new_gh_config_dir` calls give different paths.
   - `test_agent_login_case_insensitive`: config `agent_login: Agent-B`, token of `agent-b` → the agent
@@ -135,13 +135,13 @@ task here.
   - `test_root_sets_session_cwd`: `FakeExec` records `os.getcwd()` when called; it equals the `--root`
     path (use `monkeypatch.chdir` so the test restores the cwd).
   - `test_check_prints_isolated_gh_config`: `--check` prints a line `gh config: isolated`.
-- [ ] **Step 2:** Run `uv run pytest tests/test_agent.py -v`. Expected: the five new tests FAIL.
-- [ ] **Step 3: Implement.** In `agent_env`, set `GH_CONFIG_DIR`. Parse `GIT_CONFIG_COUNT` with a check
+- [x] **Step 2:** Run `uv run pytest tests/test_agent.py -v`. Expected: the five new tests FAIL.
+- [x] **Step 3: Implement.** In `agent_env`, set `GH_CONFIG_DIR`. Parse `GIT_CONFIG_COUNT` with a check
   that raises `AgentError("GIT_CONFIG_COUNT is '<value>', not a whole number ≥ 0; unset or fix it")`.
   Compare `login.casefold() != agent_login.casefold()`. In `run_agent`, `os.chdir(root)` right before
   `EXEC`. The `--check` output gains `gh config: isolated` after the `gh:` line.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `fix: isolate gh config, accept any agent_login case and honour --root in crew agent`.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `fix: isolate gh config, accept any agent_login case and honour --root in crew agent`.
 
 ### Task 2: Plugin install step and check (R15)
 

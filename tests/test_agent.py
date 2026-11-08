@@ -11,6 +11,7 @@ from crew.cli import main
 AGENT_LOGIN = "agent-b"
 AGENT_ID = 42
 TOKEN = "tok-SECRET-123"
+GH_DIR = agent.Path("/nonexistent/crew-gh")
 
 
 class FakeRun:
@@ -31,6 +32,7 @@ class FakeExec:
 
     def __call__(self, file, argv, env):
         self.calls.append((file, argv, env))
+        self.cwd = os.getcwd()
 
 
 @pytest.fixture
@@ -137,7 +139,7 @@ def git_repo(tmp_path):
     repo.mkdir()
     base = {"HOME": str(home), "PATH": os.environ["PATH"], "GIT_CONFIG_NOSYSTEM": "1"}
     _git(base, "init", "-q", cwd=repo)
-    return repo, agent_env(base, TOKEN, "botty", 42)
+    return repo, agent_env(base, TOKEN, "botty", 42, GH_DIR)
 
 
 def test_git_config_resets_credential_helpers(git_repo):
@@ -158,7 +160,7 @@ def test_ssh_remote_rewritten_to_https(git_repo):
 
 def test_existing_git_config_count_kept():
     base = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.pager", "GIT_CONFIG_VALUE_0": "cat"}
-    env = agent_env(base, TOKEN, "botty", 42)
+    env = agent_env(base, TOKEN, "botty", 42, GH_DIR)
     assert env["GIT_CONFIG_COUNT"] == "7"
     assert (env["GIT_CONFIG_KEY_0"], env["GIT_CONFIG_VALUE_0"]) == ("core.pager", "cat")
     assert env["GIT_CONFIG_KEY_1"] == "user.name"
@@ -171,6 +173,7 @@ def test_check_never_prints_token(project, capsys):
     captured = capsys.readouterr()
     assert captured.out.splitlines() == [
         f"gh: {AGENT_LOGIN}",
+        "gh config: isolated",
         f"git: {AGENT_LOGIN} {noreply_email(AGENT_LOGIN, AGENT_ID)}",
         "push: https via gh (ssh rewritten)",
     ]
@@ -231,7 +234,7 @@ def test_inherited_github_tokens_cleared():
         "GH_HOST": "ghe.example.com",
         "PATH": "/bin",
     }
-    env = agent_env(base, TOKEN, "botty", 42)
+    env = agent_env(base, TOKEN, "botty", 42, GH_DIR)
     assert not {"GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_HOST"} & set(
         env
     )
@@ -257,3 +260,46 @@ def test_agent_login_equal_to_owner_refuses(project, monkeypatch, capsys):
     err = capsys.readouterr().err
     assert err.startswith("crew: error: ") and "owner" in err
     assert fake_exec.calls == []
+
+
+def test_gh_config_dir_isolated(tmp_path):
+    base = {"GH_CONFIG_DIR": str(tmp_path / "owner-gh"), "XDG_RUNTIME_DIR": str(tmp_path)}
+    first = agent.new_gh_config_dir(base)
+    env = agent_env(base, TOKEN, "botty", 42, first)
+    assert env["GH_CONFIG_DIR"] == str(first) != base["GH_CONFIG_DIR"]
+    assert first.is_dir() and list(first.iterdir()) == []
+    assert agent.stat.S_IMODE(first.stat().st_mode) == 0o700
+    assert agent.new_gh_config_dir(base) != first
+
+
+def test_agent_login_case_insensitive(project):
+    root, _, _, fake_exec = project
+    (root / ".crew" / "config.yaml").write_text(
+        "repo: example/app\nowner_login: owner-a\nagent_login: Agent-B\n"
+    )
+    assert main(["agent", "lead", "--root", str(root)]) == 0
+    assert len(fake_exec.calls) == 1
+
+
+@pytest.mark.parametrize("value", ["abc", "-1"])
+def test_bad_git_config_count_is_clean_error(project, monkeypatch, capsys, value):
+    root, _, _, fake_exec = project
+    monkeypatch.setenv("GIT_CONFIG_COUNT", value)
+    assert main(["agent", "lead", "--root", str(root)]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("crew: error: ") and err.count("\n") == 1
+    assert "GIT_CONFIG_COUNT" in err
+    assert fake_exec.calls == []
+
+
+def test_root_sets_session_cwd(project, monkeypatch, tmp_path):
+    root, _, _, fake_exec = project
+    monkeypatch.chdir(tmp_path)
+    main(["agent", "lead", "--root", str(root)])
+    assert fake_exec.cwd == str(root)
+
+
+def test_check_prints_isolated_gh_config(project, capsys):
+    root, *_ = project
+    assert main(["agent", "lead", "--check", "--root", str(root)]) == 0
+    assert "gh config: isolated" in capsys.readouterr().out.splitlines()

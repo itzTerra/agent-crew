@@ -9,6 +9,7 @@ import json
 import os
 import stat
 import subprocess
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -90,7 +91,24 @@ def noreply_email(login: str, user_id: int) -> str:
     return f"{user_id}+{login}@users.noreply.github.com"
 
 
-def agent_env(base: Mapping[str, str], token: str, login: str, user_id: int) -> dict[str, str]:
+def new_gh_config_dir(env: Mapping[str, str]) -> Path:
+    """A fresh, empty, owner-only gh config directory for one agent session.
+
+    The session's gh then never reads the owner's gh config or stored accounts.
+
+    Args:
+        env: the environment to read ``XDG_RUNTIME_DIR`` from.
+
+    Returns:
+        A new mode-700 directory under ``$XDG_RUNTIME_DIR``, or the temp dir when unset.
+    """
+    parent = env.get("XDG_RUNTIME_DIR") or None
+    return Path(tempfile.mkdtemp(prefix="crew-gh-", dir=parent))
+
+
+def agent_env(
+    base: Mapping[str, str], token: str, login: str, user_id: int, gh_config_dir: Path
+) -> dict[str, str]:
     """The environment for an agent session: the token and the agents' git identity.
 
     Git settings are appended after any ``GIT_CONFIG_COUNT`` entries already in ``base``.
@@ -100,12 +118,17 @@ def agent_env(base: Mapping[str, str], token: str, login: str, user_id: int) -> 
         token: the agents' GitHub token.
         login: the agents' GitHub login.
         user_id: the agents' numeric GitHub id.
+        gh_config_dir: the session's own gh config directory.
 
     Returns:
         A new environment mapping.
+
+    Raises:
+        AgentError: ``GIT_CONFIG_COUNT`` in ``base`` is not a whole number of at least 0.
     """
     env = _without_cleared(base)
     env["GH_TOKEN"] = token
+    env["GH_CONFIG_DIR"] = str(gh_config_dir)
     env["GIT_SSH_COMMAND"] = SSH_REFUSED
     settings = [
         ("user.name", login),
@@ -117,12 +140,20 @@ def agent_env(base: Mapping[str, str], token: str, login: str, user_id: int) -> 
         (f"credential.{GITHUB_HTTPS}.helper", ""),
         (f"credential.{GITHUB_HTTPS}.helper", "!gh auth git-credential"),
     ]
-    start = int(env.get("GIT_CONFIG_COUNT") or 0)
+    start = _git_config_count(env.get("GIT_CONFIG_COUNT"))
     for offset, (key, value) in enumerate(settings):
         env[f"GIT_CONFIG_KEY_{start + offset}"] = key
         env[f"GIT_CONFIG_VALUE_{start + offset}"] = value
     env["GIT_CONFIG_COUNT"] = str(start + len(settings))
     return env
+
+
+def _git_config_count(value: str | None) -> int:
+    if not value:
+        return 0
+    if not value.strip().isdigit():
+        raise AgentError(f"GIT_CONFIG_COUNT is '{value}', not a whole number ≥ 0; unset or fix it")
+    return int(value)
 
 
 def _without_cleared(base: Mapping[str, str]) -> dict[str, str]:
@@ -194,6 +225,7 @@ def run_agent(
     agent_login: str,
     owner_login: str,
     check: bool,
+    root: Path,
 ) -> None:
     """Verify the agents' identity, then print it (``check``) or replace this process.
 
@@ -204,6 +236,7 @@ def run_agent(
         agent_login: the login the project's config expects.
         owner_login: the owner's login; a token of this account is always refused.
         check: print the identity and launch nothing.
+        root: the session's working directory.
 
     Raises:
         AgentError: bad role, bad token, a token of another account, or no ``claude``.
@@ -216,17 +249,25 @@ def run_agent(
             f"the agents' token belongs to the owner ({login}); "
             "agents need their own account, set as agent_login"
         )
-    if login != agent_login:
+    if login.casefold() != agent_login.casefold():
         raise AgentError(
             f"the agents' token belongs to {login}, but agent_login is {agent_login}; "
             "refusing to start an agent under another account"
         )
-    env = agent_env(os.environ, token, login, user_id)
+    gh_config_dir = new_gh_config_dir(os.environ)
+    try:
+        env = agent_env(os.environ, token, login, user_id, gh_config_dir)
+    except AgentError:
+        gh_config_dir.rmdir()
+        raise
     if check:
+        gh_config_dir.rmdir()
         print(f"gh: {login}")
+        print("gh config: isolated")
         print(f"git: {login} {noreply_email(login, user_id)}")
         print(CHECK_PUSH_LINE)
         return
+    os.chdir(root)
     try:
         EXEC(argv[0], argv, env)
     except FileNotFoundError:

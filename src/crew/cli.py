@@ -228,7 +228,13 @@ def _cmd_agent(args: argparse.Namespace) -> int:
 
     config = load_config(args.root)
     run_agent(
-        args.role, args.prompt, args.model, config.agent_login, config.owner_login, args.check
+        args.role,
+        args.prompt,
+        args.model,
+        config.agent_login,
+        config.owner_login,
+        args.check,
+        args.root,
     )
     return EXIT_OK
 
