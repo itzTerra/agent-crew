@@ -2,9 +2,7 @@ from pathlib import Path
 
 from crew.docs.pitches import parse_pitch
 
-EXAMPLE = (
-    Path(__file__).resolve().parent.parent / "fixtures" / "pitches" / "0001-shopping-list.md"
-)
+EXAMPLE = Path(__file__).resolve().parent.parent / "fixtures" / "pitches" / "0001-shopping-list.md"
 
 
 def variant(tmp_path: Path, old: str, new: str, name: str = "0001-shopping-list.md") -> Path:

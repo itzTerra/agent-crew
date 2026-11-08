@@ -43,7 +43,8 @@ def owner_inbox(units: dict[int, Unit], open_prs: list[dict]) -> list[InboxItem]
     Order: do-first items, then the number of units each blocks, then the oldest first.
     """
     counts = dependents_count(units)
-    items: dict[int, tuple[InboxItem, str]] = {}
+    # Keyed by (number, ask): an issue and its PR may ask different things.
+    items: dict[tuple[int, str], tuple[InboxItem, str]] = {}
 
     for unit in units.values():
         ask = _ask(unit.labels)
@@ -56,7 +57,7 @@ def owner_inbox(units: dict[int, Unit], open_prs: list[dict]) -> list[InboxItem]
                 counts.get(unit.number, 0),
                 DO_FIRST in unit.labels,
             )
-            items[unit.number] = (item, unit.created_at)
+            items[(unit.number, ask)] = (item, unit.created_at)
 
     for pr in open_prs:
         labels = label_names(pr)
@@ -75,7 +76,7 @@ def owner_inbox(units: dict[int, Unit], open_prs: list[dict]) -> list[InboxItem]
             counts.get(number, 0),
             do_first,
         )
-        items[number] = (item, unit.created_at if unit else "")
+        items[(number, ask)] = (item, unit.created_at if unit else "")
 
     ordered = sorted(
         items.values(),

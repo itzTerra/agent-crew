@@ -79,7 +79,11 @@ class GitHub:
             fields = [arg for name in add for arg in ("-f", f"labels[]={name}")]
             self._gh("api", "--method", "POST", base, *fields)
         for name in remove:
-            self._gh("api", "--method", "DELETE", f"{base}/{quote(name, safe='')}")
+            try:
+                self._gh("api", "--method", "DELETE", f"{base}/{quote(name, safe='')}")
+            except GitHubError as exc:
+                if "HTTP 404" not in str(exc):  # the label wasn't on it: already removed
+                    raise
 
     def comment(self, number: int, body: str) -> None:
         """Post a comment on an issue or pull request."""

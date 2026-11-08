@@ -31,6 +31,7 @@ DELTA_SECTIONS = {
 _SHALL = re.compile(r"\bshall\b", re.IGNORECASE)
 _SCENARIO_STEP = re.compile(r"^[-*]\s+(?:\*\*)?(GIVEN|WHEN|THEN|AND)\b", re.IGNORECASE)
 _RENAME = re.compile(r"^[-*]\s+FROM:\s*(.+?)\s+TO:\s*(.+?)$", re.IGNORECASE)
+_SATISFIES = re.compile(r"^\**Satisfies:\**\s*(.*)$", re.IGNORECASE)
 _TARGET = re.compile(r"^\s*(?:\*\*)?Target:(?:\*\*)?\s*(.+?)\s*$", re.IGNORECASE)
 
 
@@ -147,6 +148,7 @@ def parse_delta(text: str, source: Path, target: Spec | None) -> tuple[Delta, li
         )
 
     unknown: list[tuple[int, str]] = []
+    added: list[tuple[int, str]] = []
     for _, name, body in sections:
         kind = DELTA_SECTIONS[normalize(name)]
         if kind in ("added", "modified"):
@@ -155,6 +157,8 @@ def parse_delta(text: str, source: Path, target: Spec | None) -> tuple[Delta, li
             findings.extend(req_findings)
             if kind == "modified":
                 unknown.extend((r.line, r.name) for r in reqs)
+            else:
+                added.extend((r.line, r.name) for r in reqs)
         elif kind == "removed":
             for number, _, parsed in headings(body):
                 name_ = _requirement_name(parsed)
@@ -179,6 +183,16 @@ def parse_delta(text: str, source: Path, target: Spec | None) -> tuple[Delta, li
                         number,
                         "DELTA-UNKNOWN",
                         f"requirement `{name_}` is not in `{delta.target}`",
+                    )
+                )
+        for number, name_ in added:
+            if normalize(name_) in known:
+                findings.append(
+                    Finding(
+                        source,
+                        number,
+                        "DELTA-EXISTS",
+                        f"added requirement `{name_}` is already in `{delta.target}`; use MODIFIED",
                     )
                 )
 
@@ -244,9 +258,12 @@ def _parse_requirement(
             if step:
                 scenarios[-1][2].add(step.group(1).upper())
             continue
-        ids = prefixed(text.strip(), "Satisfies:")
-        if ids is not None:
-            satisfies.extend(i.strip() for i in ids.split(",") if i.strip())
+        match = _SATISFIES.match(text.strip())
+        if match:
+            cleaned = (
+                i.strip().strip("`*_").rstrip(".,;").strip("`*_") for i in match.group(1).split(",")
+            )
+            satisfies.extend(i for i in cleaned if i)
         elif text.strip() and not text.strip().startswith("<!--"):
             statement.append((number, text.strip()))
 

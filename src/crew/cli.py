@@ -77,6 +77,9 @@ def build_parser() -> argparse.ArgumentParser:
     inbox.set_defaults(handler=_cmd_inbox)
 
     next_ = commands.add_parser("next", help="show the ready units in pick order")
+    next_.add_argument(
+        "--rough", action="store_true", help="list the rough units in refinement order instead"
+    )
     next_.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     next_.set_defaults(handler=_cmd_next)
     return parser
@@ -187,10 +190,17 @@ def _print_cycles(cycles: list[list[int]]) -> None:
 
 
 def _cmd_next(args: argparse.Namespace) -> int:
-    from crew.graph import build_units, find_cycles, next_ready
+    from crew.graph import build_units, find_cycles, next_ready, rough_order
 
     config = load_config(args.root)
     units = build_units(make_github(config.repo).list_issues("open"))
+    if args.rough:
+        picks = rough_order(units)
+        for number in picks:
+            print(f"#{number} {units[number].title}")
+        if not picks:
+            print("nothing rough")
+        return EXIT_OK
     running = [n for n, u in units.items() if RUNNING in u.labels]
     busy = [n for n, u in units.items() if n not in running and u.labels & BUSY]
     picks = next_ready(units, running, config.max_agents, busy)
