@@ -16,6 +16,7 @@ from crew.config import ConfigError, load_config
 from crew.docs.markdown import DocumentReadError
 from crew.findings import Finding, has_errors
 from crew.github import GitHub, GitHubError
+from crew.owns import OwnsError
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -56,6 +57,12 @@ def build_parser() -> argparse.ArgumentParser:
     source.add_argument("--file", type=Path, help="a file holding the issue body")
     issue.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     issue.set_defaults(handler=_cmd_check_issue)
+
+    owns = commands.add_parser("check-owns", help="check a PR changes only its unit's owned paths")
+    owns.add_argument("pr", type=int, help="pull request number")
+    owns.add_argument("--range", help="take the paths from `git diff --name-only RANGE` instead")
+    owns.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    owns.set_defaults(handler=_cmd_check_owns)
 
     labels = commands.add_parser("labels", help="manage the crew label set")
     label_commands = labels.add_subparsers(dest="labels_command", metavar="<action>", required=True)
@@ -206,6 +213,39 @@ def _cmd_check_issue(args: argparse.Namespace) -> int:
     return _report(check_unit(body, args.root, config), args.root)
 
 
+def _cmd_check_owns(args: argparse.Namespace) -> int:
+    from crew.owns import changed_paths, outside_owns
+    from crew.units import delta_target, parse_unit_body
+
+    config = load_config(args.root)
+    github = make_github(config.repo)
+    issues = github.pr_linked_issues(args.pr)
+    if not issues:
+        print(f"PR #{args.pr} closes no issue; nothing to check")
+        return EXIT_OK
+    owned: list[str] = []
+    allowed: list[str] = []
+    missing = []
+    for number in issues:
+        unit = parse_unit_body(github.issue_body(number))
+        owned += unit.owns
+        if not unit.owns:
+            missing.append(number)
+        if target := delta_target(unit.delta_text):
+            allowed.append(target)
+    for number in missing:
+        print(f"<issue>:1: OWNS-NONE #{number} lists no owned paths")
+    paths = changed_paths(args.root, args.range) if args.range else github.pr_files(args.pr)
+    outside = outside_owns(paths, owned, allowed)
+    names = ", ".join(f"#{n}" for n in issues)
+    for path in outside:
+        print(f"{path}:1: OWNS-OUTSIDE not in the Owns of {names}")
+    if missing or outside:
+        return EXIT_FINDINGS
+    print(f"all {len(paths)} changed paths are inside the Owns of {names}")
+    return EXIT_OK
+
+
 def _cmd_inbox(args: argparse.Namespace) -> int:
     from crew.graph import build_units, find_cycles
     from crew.inbox import merged_without_owner, owner_inbox
@@ -314,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
         return handler(args)
     except SystemExit as exc:
         return int(exc.code or 0)
-    except (AgentError, CliError, ConfigError, GitHubError, DocumentReadError) as exc:
+    except (AgentError, CliError, ConfigError, GitHubError, DocumentReadError, OwnsError) as exc:
         print(f"crew: error: {exc}", file=sys.stderr)
     except OSError as exc:
         where = f" ({exc.filename})" if exc.filename else ""

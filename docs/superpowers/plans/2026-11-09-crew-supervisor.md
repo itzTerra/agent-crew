@@ -328,19 +328,19 @@ task here.
   without wildcards matches that exact path, and everything under it when it names a directory
   (`docs/` or `docs` matches `docs/a.md`).
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `test_owns_match_rules`: `src/api/**` ⊇ `src/api/a/b.py`; `src/*.py` ∌ `src/a/b.py`; `docs/x.md`
     matches only itself; `docs/` and `docs` ⊇ `docs/a.md`; `docs` ∌ `docs2/a.md`.
   - `test_outside_owns_allows_delta_target`.
   - `test_check_owns_cli_outside_path_exit_1`, `test_check_owns_cli_clean`,
     `test_check_owns_pr_without_issue_ok`, `test_check_owns_range_uses_git_diff` (fake `run` for git).
-- [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3:** Implement. The glob is translated to a regex by hand. Python 3.12 has no
+- [x] **Step 2:** Run them. Expected: FAIL.
+- [x] **Step 3:** Implement. The glob is translated to a regex by hand. Python 3.12 has no
   `PurePath.full_match`, and `fnmatch` lets `*` cross `/`. In `crew-docs.yml`, add a second step
   `- run: crew check-owns ${{ github.event.pull_request.number }}` with
   `env: GH_TOKEN: ${{ github.token }}`.
-- [ ] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: add crew check-owns to keep a PR inside its unit's owned paths`.
+- [x] **Step 4:** Run `uv run pytest -v && uv run ruff check`. Expected: PASS.
+- [x] **Step 5:** Commit `feat: add crew check-owns to keep a PR inside its unit's owned paths`.
 
 ### Task 7: Skills — merge, review, implement, refine (R1, R2, R6, R7, R10, R11, R12)
 

@@ -11,3 +11,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv tool install git+https://github.com/itzTerra/agent-crew@v{version}
       - run: crew check-docs
+      - run: crew check-owns ${{ github.event.pull_request.number }}
+        env:
+          GH_TOKEN: ${{ github.token }}

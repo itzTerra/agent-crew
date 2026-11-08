@@ -41,6 +41,18 @@ class GitHub:
         data = self._json("issue", "view", str(number), "--repo", self.repo, "--json", "body")
         return data.get("body") or ""
 
+    def pr_files(self, number: int) -> list[str]:
+        """Paths PR ``number`` changes, from ``gh pr diff --name-only``."""
+        out = self._gh("pr", "diff", str(number), "--repo", self.repo, "--name-only")
+        return [line for line in out.splitlines() if line.strip()]
+
+    def pr_linked_issues(self, number: int) -> list[int]:
+        """The issues PR ``number`` closes."""
+        data = self._json(
+            "pr", "view", str(number), "--repo", self.repo, "--json", "closingIssuesReferences"
+        )
+        return [ref["number"] for ref in data.get("closingIssuesReferences") or []]
+
     def labels_of(self, number: int) -> set[str]:
         """Label names on issue or PR ``number``."""
         data = self._json("api", f"repos/{self.repo}/issues/{number}")

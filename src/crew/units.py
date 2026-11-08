@@ -79,6 +79,12 @@ def parse_unit_body(body: str) -> UnitBody:
     return unit
 
 
+def delta_target(delta_text: str | None) -> str | None:
+    """The ``Target:`` spec file named in a spec delta, or None."""
+    match = _TARGET.search(delta_text or "")
+    return match.group(1).strip("`").strip() if match else None
+
+
 def _clean_path(text: str) -> str:
     """Strip code backticks and a leading ``./`` from an owned path."""
     path = text.strip().strip("`").strip()
