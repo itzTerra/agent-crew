@@ -141,6 +141,15 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     run.set_defaults(handler=_cmd_run)
 
+    watch = commands.add_parser(
+        "watch",
+        help="follow the active run: new owner items and the run's end (for the lead)",
+    )
+    watch.add_argument("--replay", action="store_true", help="print the run's events so far first")
+    watch.add_argument("--status", action="store_true", help="print active, ended or none and exit")
+    watch.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+    watch.set_defaults(handler=_cmd_watch)
+
     usage = commands.add_parser("usage", help="show the latest weekly usage reading")
     usage_commands = usage.add_subparsers(dest="usage_command", metavar="<action>")
     record = usage_commands.add_parser(
@@ -476,6 +485,16 @@ def _cmd_run(args: argparse.Namespace) -> int:
         pane=args.pane,
     )
     return supervisor.run(once=args.once)
+
+
+def _cmd_watch(args: argparse.Namespace) -> int:
+    from crew.watch import run_status, watch
+
+    root = args.root.resolve()
+    if args.status:
+        print(run_status(root))
+        return 0
+    return watch(root, args.replay, out=lambda line: print(line, flush=True))
 
 
 def _cmd_usage(args: argparse.Namespace) -> int:

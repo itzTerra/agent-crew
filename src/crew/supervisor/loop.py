@@ -117,7 +117,7 @@ def progress_state(snapshot: Snapshot, kind: str, number: int, config: Config) -
     return state
 
 
-def _is_crew_run(pid: int) -> bool:
+def is_crew_run(pid: int) -> bool:
     """Whether ``pid`` is a live ``crew run``. A reused pid of another program isn't one."""
     if not _pid_alive(pid):
         return False
@@ -519,7 +519,7 @@ class Supervisor:
     def _adopt(self) -> None:
         data = self._read_run()
         pid = data.get("pid")
-        if not self.dry_run and isinstance(pid, int) and pid != os.getpid() and _is_crew_run(pid):
+        if not self.dry_run and isinstance(pid, int) and pid != os.getpid() and is_crew_run(pid):
             raise RunError(f"a run is already active (pid {pid}); if it isn't, delete {RUN_PATH}")
         self.workspace = data.get("workspace") or None
         try:

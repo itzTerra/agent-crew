@@ -823,7 +823,7 @@ def test_dry_run_writes_no_events(root, tmp_path):
 
 
 def test_rejected_second_run_keeps_events(root, tmp_path, monkeypatch):
-    monkeypatch.setattr("crew.supervisor.loop._is_crew_run", lambda pid: True)
+    monkeypatch.setattr("crew.supervisor.loop.is_crew_run", lambda pid: True)
     (root / RUN_PATH).parent.mkdir(parents=True, exist_ok=True)
     (root / RUN_PATH).write_text(json.dumps({"pid": 1}))
     (root / EVENTS_PATH).write_text('{"run": "old", "type": "start"}\n')
