@@ -94,7 +94,16 @@ claude plugin install crew@agent-crew
 
 `crew-docs.yml` installs the CLI from this repo at the tag of the version that wrote it
 (`@v0.3.1`), so a change here can't break a project's CI. To upgrade, edit the tag. Projects set
-up with an older `crew init` add the `crew check-owns` step by hand, after `crew check-docs`:
+up with an older `crew init` add the `crew check-owns` step by hand, after `crew check-docs`,
+and the permissions it needs at the top level, after `on:`. Without them, a repo whose default
+workflow token reads only code fails the step with "Resource not accessible by integration":
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+```
 
 ```yaml
       - run: crew check-owns ${{ github.event.pull_request.number }}

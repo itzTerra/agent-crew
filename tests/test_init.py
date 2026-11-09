@@ -61,6 +61,8 @@ def test_docs_workflow_pins_crew_version_and_needs_no_token(tmp_path):
     workflow = (tmp_path / ".github/workflows/crew-docs.yml").read_text(encoding="utf-8")
     assert f"git+https://github.com/itzTerra/agent-crew@v{__version__}" in workflow
     assert "secrets." not in workflow
+    # check-owns reads the PR and its unit's issue with the workflow's own token.
+    assert "permissions:\n  contents: read\n  pull-requests: read\n  issues: read\n" in workflow
 
 
 def test_init_prints_plugin_step(tmp_path, monkeypatch, capsys):

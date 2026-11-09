@@ -3,6 +3,12 @@ name: crew docs
 on:
   pull_request:
 
+# crew check-owns reads the PR and its unit's issue; a repo's default token may read only code.
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
 jobs:
   check-docs:
     runs-on: ubuntu-latest
