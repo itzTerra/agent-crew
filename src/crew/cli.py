@@ -443,7 +443,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     from crew.supervisor.loop import Supervisor
     from crew.supervisor.until import parse_until
 
-    config = load_config(args.root)
+    root = args.root.resolve()  # git reports worktrees by absolute path
+    config = load_config(root)
     if args.cap is not None and not BUDGET_MIN <= args.cap <= BUDGET_MAX:
         raise CliError(f"--cap must be {BUDGET_MIN}–{BUDGET_MAX}, got {args.cap}")
     clock, sleep = run_clock, run_sleep
@@ -452,7 +453,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except ValueError as exc:
         raise CliError(f"--until: {exc}") from None
     supervisor = Supervisor(
-        args.root,
+        root,
         config,
         make_github(config.repo),
         make_herdr(),

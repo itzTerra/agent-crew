@@ -115,6 +115,17 @@ def progress_state(snapshot: Snapshot, kind: str, number: int, config: Config) -
     return state
 
 
+def _is_crew_run(pid: int) -> bool:
+    """Whether ``pid`` is a live ``crew run``. A reused pid of another program isn't one."""
+    if not _pid_alive(pid):
+        return False
+    try:
+        parts = Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace").split("\0")
+    except OSError:
+        return True  # no /proc here: trust the pid
+    return "run" in parts and any(part == "crew" or part.endswith("/crew") for part in parts)
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -168,6 +179,7 @@ class Supervisor:
         self.urls: dict[int, str] = {}
         self.next_sleep: float = config.poll_seconds
         self.window_reset_at: datetime | None = None  # while the 5-hour window is full
+        self.pending_states: dict[int, str] = {}  # label moves a GitHub error cut short
 
     # --- one tick -------------------------------------------------------------------------
 
@@ -183,7 +195,9 @@ class Supervisor:
             return END_TIME
         usage = read_usage(self.usage_file)
         fresh = is_fresh(usage, now)
-        if fresh and usage is not None:
+        self._retry_label_moves()
+        if fresh and usage is not None and usage.week_resets_at > now:
+            # (A reading from before the weekly reset says nothing about this week.)
             cap = self.cap if self.cap is not None else self._effective_cap(now)
             if usage.week_percent >= cap:
                 return f"budget cap reached ({usage.week_percent:g}% of {cap}%)"
@@ -323,19 +337,39 @@ class Supervisor:
     def _mark_stuck(self, record: AgentRecord, why: str) -> None:
         lines = self.herdr.read(record.pane, STUCK_LINES).rstrip("\n").splitlines()[-STUCK_LINES:]
         body = f"crew run: the agent {why}. Last output:\n\n```\n" + "\n".join(lines) + "\n```"
-        self._comment(record.number, body)
-        set_state(self.github, record.number, "owner-stuck")
+        # Reported on the unit's issue; PR work names the PR.
+        target = record.issue if record.kind in PR_KINDS and record.issue else record.number
+        if target != record.number:
+            body = f"crew run: on PR #{record.number} ({self.urls.get(record.number, '')}), " + (
+                body.removeprefix("crew run: ")
+            )
+        self._comment(target, body)
+        self._set_state(record.number, "owner-stuck")
         self.herdr.close(record.pane)
         self.agents.remove(record)
         self.summary.stuck.append(self._label(record))
         self._log(f"{record.kind} #{record.number}: {why}; set crew:owner-stuck")
+
+    def _set_state(self, number: int, state: str) -> None:
+        """set_state, remembering a move that failed halfway so the next tick finishes it."""
+        try:
+            set_state(self.github, number, state)
+        except GitHubError:
+            self.pending_states[number] = state
+            raise
+        self.pending_states.pop(number, None)
+
+    def _retry_label_moves(self) -> None:
+        for number, state in list(self.pending_states.items()):
+            self._set_state(number, state)
+            self._log(f"#{number}: finished moving to {state}")
 
     def _comment(self, number: int, body: str) -> None:
         self.github.comment(number, f"{body}\n\n{MARKER}")
 
     def _apply(self, result: Plan, snapshot: Snapshot) -> None:
         for item in result.housekeeping:
-            set_state(self.github, item.number, item.state)
+            self._set_state(item.number, item.state)
             if item.comment:
                 self._comment(item.number, item.comment)
             self._log(f"#{item.number}: set {item.state}")
@@ -436,6 +470,7 @@ class Supervisor:
             "cap": self.cap,
             "workspace": self.workspace,
             "paused": self.paused,
+            "window_reset_at": self.window_reset_at.isoformat() if self.window_reset_at else None,
         }
         if alive:
             data = {"pid": os.getpid(), **data}
@@ -450,9 +485,15 @@ class Supervisor:
     def _adopt(self) -> None:
         data = self._read_run()
         pid = data.get("pid")
-        if not self.dry_run and isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
-            raise RunError(f"a run is already active (pid {pid})")
+        if not self.dry_run and isinstance(pid, int) and pid != os.getpid() and _is_crew_run(pid):
+            raise RunError(f"a run is already active (pid {pid}); if it isn't, delete {RUN_PATH}")
         self.workspace = data.get("workspace") or None
+        try:
+            reset = datetime.fromisoformat(str(data.get("window_reset_at")))
+            if reset.tzinfo and reset > self.clock():
+                self.window_reset_at = reset
+        except ValueError:
+            pass
         self.paused = [p for p in data.get("paused") or [] if isinstance(p, dict)]
         for raw in data.get("agents") or []:
             try:

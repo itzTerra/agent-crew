@@ -188,13 +188,30 @@ def test_restart_adopts_live_agents(root, tmp_path):
 
 
 def test_second_run_refused_while_first_alive(root, tmp_path, monkeypatch, capsys):
-    (root / RUN_PATH).write_text(json.dumps({"pid": os.getppid(), "agents": []}))
+    import subprocess
+    import sys
+
+    first = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "crew", "run"])
+    monkeypatch.setattr(os, "getppid", lambda: first.pid)
+    request = None
+    try:
+        request = _second_run(root, tmp_path, monkeypatch, capsys, first.pid)
+    finally:
+        first.kill()
+        first.wait()
+    assert request is None
+
+
+def _second_run(root, tmp_path, monkeypatch, capsys, pid):
+    (root / RUN_PATH).write_text(json.dumps({"pid": pid, "agents": []}))
     monkeypatch.setattr("crew.cli.make_github", lambda repo: FakeGitHub())
     monkeypatch.setattr("crew.cli.make_herdr", lambda: FakeHerdr())
     until = (START + timedelta(days=400)).isoformat()
     assert main(["run", "--until", until, "--once", "--root", str(root)]) == 2
     err = capsys.readouterr().err
-    assert err == f"crew: error: a run is already active (pid {os.getppid()})\n"
+    assert err == (
+        f"crew: error: a run is already active (pid {pid}); if it isn't, delete .crew/run.json\n"
+    )
     with pytest.raises(RunError):
         make(root, tmp_path, FakeGitHub()).run(once=True)
 
@@ -597,3 +614,108 @@ def test_start_pretrusts_its_worktree_only(root, tmp_path):
     supervisor = make(root, tmp_path, github)
     supervisor.tick()
     assert supervisor.trusted == [tmp_path / "wt" / "unit-7-unit-7"]  # not the root (refine)
+
+
+# --- deferred minors -----------------------------------------------------------------------
+
+
+def test_relative_root_is_resolved(root, tmp_path, monkeypatch):
+    # M1: worktree reuse compares git's absolute paths with ours.
+    seen = {}
+
+    class Recording:
+        def __init__(self, root, *args, **kwargs):
+            seen["root"] = root
+
+        def run(self, once=False):
+            return 0
+
+    monkeypatch.setattr("crew.supervisor.loop.Supervisor", Recording)
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: FakeGitHub())
+    monkeypatch.setattr("crew.cli.make_herdr", lambda: FakeHerdr())
+    monkeypatch.chdir(root.parent)
+    until = (START + timedelta(days=400)).isoformat()
+    assert main(["run", "--until", until, "--once", "--root", root.name]) == 0
+    assert seen["root"] == root.resolve() and seen["root"].is_absolute()
+
+
+def test_live_pid_of_another_program_is_not_a_run(root, tmp_path):
+    # M2: after a reboot the stored pid may belong to something else.
+    (root / RUN_PATH).write_text(json.dumps({"pid": os.getppid(), "agents": []}))
+    make(root, tmp_path, FakeGitHub()).run(once=True)  # no RunError
+
+
+def test_restart_during_window_wait_keeps_the_reset_time(root, tmp_path):
+    # M3
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/", labels=("crew:in-progress",))])
+    herdr = FakeHerdr()
+    herdr.statuses["w1:p9"] = "idle"
+    reset = clock() + timedelta(minutes=30)
+    record = AgentRecord("w1:p9", "implement", 7, None, "implementer", "unit/7-unit-7",
+                         ["working"], START.isoformat(), limited=True)  # fmt: skip
+    (root / RUN_PATH).write_text(json.dumps({
+        "workspace": "w1", "paused": [], "agents": [record.__dict__],
+        "window_reset_at": reset.isoformat(),
+    }))  # fmt: skip
+    supervisor = make(root, tmp_path, github, herdr, clock=clock, fresh=False)
+    supervisor.run(once=True)
+    assert herdr.prompts == []  # still waiting: no CONTINUE before the reset
+    assert json.loads((root / RUN_PATH).read_text())["window_reset_at"] == reset.isoformat()
+
+
+def test_failed_label_move_is_retried_next_tick(root, tmp_path):
+    # M4: a GitHub error halfway through set_state leaves the issue and PR apart.
+    from crew.github import GitHubError
+
+    github = FakeGitHub(
+        [issue(5, labels=["crew:in-review"], owns=["a/"])], [pr(9, 5, ["crew:in-review"], "fail")]
+    )
+    real = github.set_labels
+    calls = {"n": 0}
+
+    def flaky(number, add, remove):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise GitHubError("gh api failed: HTTP 502")
+        real(number, add, remove)
+
+    github.set_labels = flaky
+    supervisor = make(root, tmp_path, github)
+    supervisor.run(once=True)  # the GitHub error is logged, not fatal
+    supervisor.tick()
+    names = {n: {label["name"] for label in github._item(n)["labels"]} for n in (5, 9)}
+    assert names == {5: {"crew:changes-requested"}, 9: {"crew:changes-requested"}}
+
+
+def test_stuck_report_for_pr_work_goes_on_the_issue(root, tmp_path):
+    # M5: the spec says the stuck agent is reported on the issue.
+    github = FakeGitHub(
+        [issue(5, labels=["crew:changes-requested"], owns=["a/"])],
+        [pr(9, 5, ["crew:changes-requested"])],
+    )
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    herdr.statuses[herdr.tabs[0][0]] = "idle"
+    supervisor.tick()
+    supervisor.tick()
+    ((number, body),) = github.comments
+    assert number == 5 and "https://github.com/example/app/pull/9" in body
+
+
+def test_reading_from_before_the_weekly_reset_does_not_stop_the_run(root, tmp_path):
+    # M9
+    clock = Clock()
+    github = FakeGitHub([ready(7, "a/")])
+    supervisor = make(root, tmp_path, github, clock=clock)
+    data = {
+        "rate_limits": {
+            "seven_day": {"used_percentage": 90, "resets_at": int(clock().timestamp()) - 60},
+            "five_hour": {"used_percentage": 5, "resets_at": int(clock().timestamp()) + 3600},
+        }
+    }
+    from crew.usage import record_statusline
+
+    record_statusline(json.dumps(data), tmp_path / "usage.json", clock() - timedelta(minutes=5))
+    assert supervisor.tick() is None
