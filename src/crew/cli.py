@@ -134,6 +134,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="show what each tick would do; change nothing"
     )
     run.add_argument("--once", action="store_true", help="run a single tick")
+    run.add_argument(
+        "--pane", metavar="PANE",
+        help="herdr pane this run runs in; the lead closes it after the run",
+    )  # fmt: skip
     run.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     run.set_defaults(handler=_cmd_run)
 
@@ -469,6 +473,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         dry_run=args.dry_run,
         clock=lambda: clock(),
         sleep=lambda seconds: sleep(seconds),
+        pane=args.pane,
     )
     return supervisor.run(once=args.once)
 

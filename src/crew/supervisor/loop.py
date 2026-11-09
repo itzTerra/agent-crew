@@ -15,9 +15,11 @@ from crew.budget import effective_cap
 from crew.config import Config
 from crew.github import GitHub, GitHubError
 from crew.graph import READY, RUNNING
+from crew.inbox import owner_inbox
 from crew.labels import FLOW, set_state
 from crew.state import read_state
 from crew.supervisor import worktrees
+from crew.supervisor.events import append_event, new_run_id, start_log
 from crew.supervisor.herdr import Herdr, HerdrError
 from crew.supervisor.planner import Action, Kind, Live, Plan, plan
 from crew.supervisor.snapshot import MARKER, Snapshot, owner_activity, take_snapshot
@@ -157,6 +159,7 @@ class Supervisor:
         usage_file: Path | None = None,
         git_run=subprocess.run,
         trust=None,
+        pane: str | None = None,
     ):
         self.root = root
         self.config = config
@@ -180,6 +183,9 @@ class Supervisor:
         self.next_sleep: float = config.poll_seconds
         self.window_reset_at: datetime | None = None  # while the 5-hour window is full
         self.pending_states: dict[int, str] = {}  # label moves a GitHub error cut short
+        self.pane = pane
+        self.run_id: str | None = None  # set once a real run starts; None means no events
+        self._inbox_keys: set[tuple[int, str]] | None = None  # None until the baseline tick
 
     # --- one tick -------------------------------------------------------------------------
 
@@ -214,6 +220,7 @@ class Supervisor:
             if len(self.summary.stuck) != stuck_before:
                 # Labels just changed: plan from GitHub as it is now, not as it was.
                 snapshot = take_snapshot(self.github, self.config)
+            self._report_inbox(snapshot)
             window_full = window_full or self._window_full(None, now)
             if window_full:
                 self._log(self._window_message())
@@ -238,6 +245,31 @@ class Supervisor:
         if result.idle and not self.agents:
             return IDLE_END
         return None
+
+    def _report_inbox(self, snapshot: Snapshot) -> None:
+        """Append an ``item`` event for each owner-inbox entry that is new since the last tick.
+
+        The first call only records the inbox as the baseline.
+
+        @param snapshot: this tick's GitHub snapshot
+        """
+        items = owner_inbox(snapshot.units, list(snapshot.prs.values()))
+        keys = {(item.number, item.ask) for item in items}
+        previous, self._inbox_keys = self._inbox_keys, keys
+        if previous is None or self.run_id is None:
+            return
+        for item in items:
+            if (item.number, item.ask) not in previous:
+                self._event(
+                    "item", number=item.number, ask=item.ask, title=item.title, url=item.url
+                )
+
+    def _event(self, kind: str, **fields) -> None:
+        append_event(
+            self.root,
+            {"run": self.run_id, "type": kind, "at": self.clock().astimezone(UTC).isoformat()}
+            | fields,
+        )
 
     def _effective_cap(self, now: datetime) -> int:
         return effective_cap(self.config, read_state(self.root), now)[0]
@@ -471,6 +503,8 @@ class Supervisor:
             "workspace": self.workspace,
             "paused": self.paused,
             "window_reset_at": self.window_reset_at.isoformat() if self.window_reset_at else None,
+            "run_id": self.run_id,
+            "pane": self.pane,
         }
         if alive:
             data = {"pid": os.getpid(), **data}
@@ -522,6 +556,9 @@ class Supervisor:
         """
         self._adopt()
         if not self.dry_run:
+            if not once:  # a single tick isn't a run anyone watches: no id, no events
+                self.run_id = new_run_id(os.getpid(), self.clock())
+                start_log(self.root, self.run_id, self.clock(), self.until, self.pane)
             self._write_run(alive=True)
         failures = 0
         reason = None
@@ -574,6 +611,17 @@ class Supervisor:
                 unclosed.append(record)
             self._maybe_pause(record)
         self.agents = unclosed  # kept in run.json so the next run adopts them
+        if self.run_id is not None:  # before run.json says the run is over: status never reads none
+            self._event(
+                "end",
+                reason=reason,
+                error=reason.startswith("error: "),
+                pane=self.pane,
+                started=self.summary.started,
+                finished=self.summary.finished,
+                stuck=self.summary.stuck,
+                paused=self.summary.paused,
+            )
         self._write_run(alive=False, keep_agents=bool(unclosed))
         self._print_summary(reason)
 

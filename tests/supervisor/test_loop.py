@@ -9,6 +9,7 @@ import pytest
 
 from crew.cli import main
 from crew.config import load_config
+from crew.supervisor.events import EVENTS_PATH, read_events
 from crew.supervisor.loop import NUDGE, RUN_PATH, AgentRecord, RunError, Supervisor
 from tests.supervisor.fakes import (
     START,
@@ -32,7 +33,9 @@ def root(tmp_path):
     return root
 
 
-def make(root, tmp_path, github, herdr=None, clock=None, fresh=True, dry_run=False, until=None):
+def make(
+    root, tmp_path, github, herdr=None, clock=None, fresh=True, dry_run=False, until=None, pane=None
+):
     clock = clock or Clock()
     usage_file = tmp_path / "usage.json"
     if fresh:
@@ -43,7 +46,7 @@ def make(root, tmp_path, github, herdr=None, clock=None, fresh=True, dry_run=Fal
         until=until or START + timedelta(hours=10), cap=None, dry_run=dry_run,
         clock=clock, sleep=clock.sleep, out=out.append,
         worktree=FakeWorktree(tmp_path / "wt"), usage_file=usage_file, git_run=FakeGitRun(),
-        trust=lambda path: trusted.append(path),
+        trust=lambda path: trusted.append(path), pane=pane,
     )  # fmt: skip
     supervisor.trusted = trusted
     supervisor.log = out
@@ -719,3 +722,120 @@ def test_reading_from_before_the_weekly_reset_does_not_stop_the_run(root, tmp_pa
 
     record_statusline(json.dumps(data), tmp_path / "usage.json", clock() - timedelta(minutes=5))
     assert supervisor.tick() is None
+
+
+def _items(root):
+    return [e for e in read_events(root) if e["type"] == "item"]
+
+
+def test_run_writes_start_event_with_pane(root, tmp_path):
+    make(root, tmp_path, FakeGitHub(), pane="p9", until=START - timedelta(hours=1)).run()
+    first = read_events(root)[0]
+    assert first["type"] == "start" and first["pane"] == "p9"
+    assert first["run"] == json.loads((root / RUN_PATH).read_text())["run_id"]
+    assert json.loads((root / RUN_PATH).read_text())["pane"] == "p9"
+
+
+def test_first_tick_items_are_a_baseline(root, tmp_path):
+    github = FakeGitHub([issue(5, labels=["crew:owner-decision"], owns=["b/"])])
+    supervisor = make(root, tmp_path, github)
+    supervisor.run(once=True)
+    assert _items(root) == []
+
+
+def test_new_inbox_item_is_reported_once(root, tmp_path):
+    github = FakeGitHub([ready(7, "a/")])
+    supervisor = make(root, tmp_path, github)
+    supervisor.run_id = "r1"
+    supervisor.tick()
+    github.relabel(7, "crew:owner-accept")
+    supervisor.tick()
+    supervisor.tick()
+    (item,) = _items(root)
+    assert (item["number"], item["ask"]) == (7, "accept")
+    assert item["url"] == "https://github.com/example/app/issues/7"
+    assert item["title"] == "Unit 7"
+
+
+def test_item_that_returns_is_reported_again(root, tmp_path):
+    github = FakeGitHub([ready(7, "a/")])
+    supervisor = make(root, tmp_path, github)
+    supervisor.run_id = "r1"
+    supervisor.tick()
+    github.relabel(7, "crew:owner-accept")
+    supervisor.tick()
+    github.relabel(7)
+    supervisor.tick()
+    github.relabel(7, "crew:owner-accept")
+    supervisor.tick()
+    assert [e["number"] for e in _items(root)] == [7, 7]
+
+
+def test_end_event_carries_reason_and_summary(root, tmp_path):
+    supervisor = make(root, tmp_path, FakeGitHub(), until=START - timedelta(hours=1))
+    supervisor.summary.started.append("implement #7")
+    supervisor.run()
+    last = read_events(root)[-1]
+    assert last["type"] == "end"
+    assert last["reason"] == "end time reached" and last["error"] is False
+    assert (last["started"], last["finished"], last["stuck"], last["paused"]) == (
+        ["implement #7"], [], [], [],
+    )  # fmt: skip
+
+
+def test_end_event_is_written_before_the_run_is_marked_over(root, tmp_path):
+    supervisor = make(root, tmp_path, FakeGitHub(), until=START - timedelta(hours=1))
+    seen = []
+    write_run = supervisor._write_run
+    supervisor._write_run = lambda **kw: (
+        seen.append((kw["alive"], read_events(root)[-1]["type"])),
+        write_run(**kw),
+    )[1]
+    supervisor.run()
+    assert seen[-1] == (False, "end")
+
+
+def test_once_run_writes_no_events(root, tmp_path):
+    make(root, tmp_path, FakeGitHub([ready(7, "a/")])).run(once=True)
+    assert not (root / EVENTS_PATH).exists()
+
+
+def test_error_end_event(root, tmp_path):
+    class Failing(FakeGitHub):
+        calls = 0
+
+        def list_issues(self, state="open"):
+            self.calls += 1
+            if self.calls > 1:
+                raise RuntimeError("boom")
+            return super().list_issues(state)
+
+    supervisor = make(root, tmp_path, Failing([ready(7, "a/")]))
+    with pytest.raises(RuntimeError):
+        supervisor.run()
+    last = read_events(root)[-1]
+    assert last["error"] is True and last["reason"] == "error: boom"
+
+
+def test_dry_run_writes_no_events(root, tmp_path):
+    make(root, tmp_path, FakeGitHub([ready(7, "a/")]), dry_run=True).run(once=True)
+    assert not (root / EVENTS_PATH).exists()
+
+
+def test_rejected_second_run_keeps_events(root, tmp_path, monkeypatch):
+    monkeypatch.setattr("crew.supervisor.loop._is_crew_run", lambda pid: True)
+    (root / RUN_PATH).parent.mkdir(parents=True, exist_ok=True)
+    (root / RUN_PATH).write_text(json.dumps({"pid": 1}))
+    (root / EVENTS_PATH).write_text('{"run": "old", "type": "start"}\n')
+    with pytest.raises(RunError):
+        make(root, tmp_path, FakeGitHub()).run()
+    assert (root / EVENTS_PATH).read_text() == '{"run": "old", "type": "start"}\n'
+
+
+def test_run_parser_takes_pane():
+    from crew.cli import build_parser
+
+    args = build_parser().parse_args(
+        ["run", "--until", "07:00", "--pane", "p9", "--dry-run", "--once"]
+    )
+    assert args.pane == "p9"
