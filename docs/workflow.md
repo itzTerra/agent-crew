@@ -223,7 +223,9 @@ quality.
 
 Nothing runs unless the owner starts a run. A run has an end time, such as "until 07:00", or
 "until Monday 07:00" when started on a Friday. The lead agrees it with the owner, shows the budget
-and a dry run of the first step, and starts the run only with the owner's go-ahead.
+and a dry run of the first step, and starts the run only with the owner's go-ahead. While it
+runs, the lead reports each new item that waits on the owner as it appears, and summarizes the
+end; it acts on an item only with the owner's go-ahead.
 
 During a run a small local supervisor (`crew run`) keeps up to N agents busy, N = 1–3 from the
 project settings (`max_agents`). Every couple of minutes it reads GitHub and:

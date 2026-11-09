@@ -47,6 +47,15 @@ When the owner wants the crew to work unattended (overnight, over a weekend), us
 skill: agree the end time, show the budget and a dry run, and start `crew run` only with their
 go-ahead. To show or raise this week's budget cap, use the `crew:budget` skill.
 
+At the start of a session, run `crew watch --status`:
+
+- `active`: tell the owner a run is going and offer to watch it. If they agree, start
+  `crew watch --replay` with the Monitor tool. Condense everything before `--- live from here`
+  into one catch-up list, then handle live lines as in step 7 of `crew:run`. When the Monitor
+  expires, re-arm with plain `crew watch`, not `--replay` again: it resumes where it stopped.
+- `ended`: start `crew watch` and give the end report (step 8 of `crew:run`).
+- `none`: say nothing about runs.
+
 ## Retrospective
 
 About weekly, propose a short retrospective as a `crew:owner-proposal` issue: what got stuck,

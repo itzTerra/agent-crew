@@ -206,6 +206,7 @@ designer and implementer); pass `--model sonnet` (`crew agent reviewer --model s
 
 `crew run` keeps up to `max_agents` agents busy in [herdr](https://herdr.dev) until an end time.
 Nothing runs unless you start it; the lead's `crew:run` skill walks you through it.
+While it runs, the lead reports each item that newly waits on you, and the run's end (`crew watch`).
 
 ```sh
 crew budget                                   # the cap and the latest usage reading
