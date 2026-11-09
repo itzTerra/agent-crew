@@ -105,7 +105,7 @@ git commit -m "feat(labels): add crew:idea for parked ideas"
 - Consumes: `crew.labels.IDEA` (Task 1).
 - Produces: `crew.inbox.parked_ideas(units: dict[int, Unit]) -> int`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_parked_ideas_counts_open_ideas_only():
@@ -133,19 +133,19 @@ def test_inbox_cli_parked_ideas_line(tmp_path, monkeypatch, capsys):
     assert "Parked ideas" not in capsys.readouterr().out
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `uv run pytest tests/test_inbox.py -k parked -v`
 Expected: FAIL (ImportError `parked_ideas`).
 
-- [ ] **Step 3: Implement** `parked_ideas` in `src/crew/inbox.py`, and in `_cmd_inbox` print a blank line plus `Parked ideas: {n}` right after the merged-without-you block, only when `n > 0`.
+- [x] **Step 3: Implement** `parked_ideas` in `src/crew/inbox.py`, and in `_cmd_inbox` print a blank line plus `Parked ideas: {n}` right after the merged-without-you block, only when `n > 0`.
 
-- [ ] **Step 4: Run the whole suite**
+- [x] **Step 4: Run the whole suite**
 
 Run: `uv run pytest -q`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/inbox.py src/crew/cli.py tests/test_inbox.py docs/superpowers/plans/2026-11-09-parked-ideas.md

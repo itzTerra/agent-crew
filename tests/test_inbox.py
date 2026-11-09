@@ -4,7 +4,7 @@ from pathlib import Path
 
 from crew.cli import main
 from crew.graph import build_units, next_ready
-from crew.inbox import InboxItem, merged_without_owner, owner_inbox
+from crew.inbox import InboxItem, merged_without_owner, owner_inbox, parked_ideas
 from tests.test_graph import issue
 
 PROJECT = Path(__file__).resolve().parent / "fixtures" / "project"
@@ -136,3 +136,31 @@ def test_next_cli(tmp_path, monkeypatch, capsys):
         "Left out",
         "  #3 Unit 3 — owns overlap with #2",
     ]
+
+
+def test_parked_ideas_counts_open_ideas_only():
+    closed_idea = issue(3, labels=["crew:idea"])
+    closed_idea["state"] = "CLOSED"
+    units = build_units([issue(1, labels=["crew:idea"]), issue(2), closed_idea])
+    assert parked_ideas(units) == 1
+    assert owner_inbox(units, []) == []
+
+
+def test_inbox_cli_parked_ideas_line(tmp_path, monkeypatch, capsys):
+    root = tmp_path / "project"
+    shutil.copytree(PROJECT, root)
+    fake = FakeGitHub(
+        issues=[issue(1, labels=["crew:idea"]), issue(2, labels=["crew:idea"])],
+        open_prs=[],
+        merged_prs=[],
+    )
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
+    assert main(["inbox", "--root", str(root), "--peek"]) == 0
+    out = capsys.readouterr().out
+    assert "Parked ideas: 2" in out
+    assert out.index("Merged without you") < out.index("Parked ideas: 2")
+    assert "#1" not in out
+
+    fake.issues = [issue(2)]
+    assert main(["inbox", "--root", str(root), "--peek"]) == 0
+    assert "Parked ideas" not in capsys.readouterr().out

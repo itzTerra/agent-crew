@@ -12,6 +12,7 @@ from crew.graph import (
     label_names,
     priority_key,
 )
+from crew.labels import IDEA
 
 ASKS = OWNER_ASKS
 INTERNAL = "crew:internal"
@@ -94,3 +95,8 @@ def merged_without_owner(merged_prs: list[dict], since: str | None) -> list[dict
         and pr.get("mergedAt")
         and (since is None or pr["mergedAt"] > since)
     ]
+
+
+def parked_ideas(units: dict[int, Unit]) -> int:
+    """The number of open issues labeled ``crew:idea``; they never wait on the owner."""
+    return sum(1 for unit in units.values() if IDEA in unit.labels)

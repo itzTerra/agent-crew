@@ -303,7 +303,7 @@ def _cmd_check_owns(args: argparse.Namespace) -> int:
 
 def _cmd_inbox(args: argparse.Namespace) -> int:
     from crew.graph import build_units, find_cycles
-    from crew.inbox import merged_without_owner, owner_inbox
+    from crew.inbox import merged_without_owner, owner_inbox, parked_ideas
     from crew.state import read_state, write_state
 
     config = load_config(args.root)
@@ -330,6 +330,9 @@ def _cmd_inbox(args: argparse.Namespace) -> int:
         print(f"  #{pr['number']} {pr.get('title', '')} — {pr.get('url', '')}")
     if not merged_items:
         print("  nothing")
+    if ideas := parked_ideas(units):
+        print()
+        print(f"Parked ideas: {ideas}")
 
     _print_cycles(find_cycles(units))
     problems = _fetch_label_problems(github, open_issues, open_prs, merged)
