@@ -19,7 +19,8 @@ Run by the lead, when the owner tells you feedback for a PR instead of writing i
 
    If you need to add context (for example which checklist step it refers to), put it after the
    quote under `Context (lead):`, clearly as yours.
-   Use `gh pr comment N --body-file <file>` so line breaks and quotes survive.
+   Use `gh pr comment N --body-file <file>` so line breaks and quotes survive, with a new file
+   from `mktemp`, never a fixed path another session may have left behind.
 3. Set the state on the PR and its issue together: `crew labels set-state N changes-requested`.
 4. Tell the owner it is posted, with the comment link.
 

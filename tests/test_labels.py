@@ -2,6 +2,8 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from crew.cli import main
 from crew.github import GitHub
 from crew.labels import FLOW, LabelProblem, label_problems, set_state
@@ -178,3 +180,42 @@ def test_inbox_lists_label_problems(tmp_path, monkeypatch, capsys):
         "  #2: closed issue still has crew:in-review\n"
         "  #1: has more than one state label: crew:rough, crew:ready"
     )
+
+
+def unit_pr(number, unit, closes):
+    item = pr(number, labels=["crew:owner-decision"], closes=closes)
+    item["headRefName"] = f"unit/{unit}-design-system"
+    return item
+
+
+def test_label_problems_unit_pr_that_closes_another_issue():
+    problems = label_problems(
+        open_issues=[issue(4, labels=["crew:in-progress"])],
+        closed_issues=[],
+        open_prs=[unit_pr(11, 4, closes=[1]), unit_pr(12, 6, closes=[6])],
+        merged_prs=[],
+    )
+    assert problems == [
+        LabelProblem(
+            11,
+            "PR #11 is on branch unit/4-design-system but doesn't close #4; "
+            "put `Closes #4` in its body",
+            (),
+        )
+    ]
+
+
+def test_set_state_refuses_a_unit_pr_that_closes_another_issue():
+    github, fake = gh_with([unit_pr(11, 4, closes=[1])], {4: ["crew:in-progress"]})
+    with pytest.raises(ValueError, match=r"PR #11 is on branch unit/4-design-system but doesn't"):
+        set_state(github, 4, "in-review")
+    with pytest.raises(ValueError, match=r"doesn't close #4"):
+        set_state(github, 11, "in-review")
+    assert label_calls(fake) == []
+
+
+def test_set_state_cli_reports_unit_pr_problem(monkeypatch, capsys):
+    github, _ = gh_with([unit_pr(11, 4, closes=[1])], {4: ["crew:in-progress"]})
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
+    assert main(["labels", "set-state", "4", "in-review", "--root", str(PROJECT)]) != 0
+    assert "put `Closes #4` in its body" in capsys.readouterr().err

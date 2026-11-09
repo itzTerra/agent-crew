@@ -186,7 +186,11 @@ def _cmd_labels_set_state(args: argparse.Namespace) -> int:
         raise CliError(f"unknown state {args.state!r}; choose one of {', '.join(STATES)}")
     config = load_config(args.root)
     shown = "done" if args.state == DONE else f"crew:{args.state}"
-    for number in set_state(make_github(config.repo), args.number, args.state):
+    try:
+        changed = set_state(make_github(config.repo), args.number, args.state)
+    except ValueError as exc:
+        raise CliError(str(exc)) from None
+    for number in changed:
         print(f"#{number}: {shown}")
     return EXIT_OK
 

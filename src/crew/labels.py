@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -60,6 +61,8 @@ STATES = (
     "done",
 )
 DONE = "done"
+# A unit's branch, ``unit/<n>-<slug>`` (see ``crew.supervisor.planner.unit_branch``).
+_UNIT_BRANCH = re.compile(r"^unit/(\d+)-")
 
 
 def _names(item: dict) -> set[str]:
@@ -72,6 +75,28 @@ def _flow_of(names: set[str]) -> list[str]:
 
 def _linked(pr: dict) -> list[int]:
     return [ref["number"] for ref in pr.get("closingIssuesReferences") or []]
+
+
+def _unit_of(pr: dict) -> int | None:
+    """The unit whose branch the PR is on, or None for a branch not named ``unit/<n>-…``."""
+    match = _UNIT_BRANCH.match(pr.get("headRefName") or "")
+    return int(match.group(1)) if match else None
+
+
+def _unlinked_unit_pr(pr: dict) -> str | None:
+    """Why an open PR on a unit's branch doesn't count as that unit's, or None if it does.
+
+    Such a PR is invisible to ``set_state`` and to the inbox's grouping by issue, for example
+    when its body was taken from another PR's and closes the wrong issue.
+    """
+    unit = _unit_of(pr)
+    if unit is None or unit in _linked(pr):
+        return None
+    branch = pr["headRefName"]
+    return (
+        f"PR #{pr['number']} is on branch {branch} but doesn't close #{unit}; "
+        f"put `Closes #{unit}` in its body"
+    )
 
 
 def set_state(github: GitHub, number: int, state: str) -> list[int]:
@@ -90,11 +115,17 @@ def set_state(github: GitHub, number: int, state: str) -> list[int]:
         The numbers the state was applied to, ascending.
 
     Raises:
-        ValueError: ``state`` is not one of ``STATES``.
+        ValueError: ``state`` is not one of ``STATES``, or ``number`` is an open PR on a
+            ``unit/<n>-…`` branch that doesn't close ``n``, or such a PR's unit (nothing is
+            changed).
     """
     if state not in STATES:
         raise ValueError(f"unknown state {state!r}; choose one of {', '.join(STATES)}")
     prs = list(github.list_prs("open"))
+    for pr in prs:
+        problem = _unlinked_unit_pr(pr)
+        if problem and number in (pr["number"], _unit_of(pr)):
+            raise ValueError(problem)
     if state == DONE:
         prs += github.list_prs("merged")
     by_number = {pr["number"]: pr for pr in prs}
@@ -131,7 +162,8 @@ def label_problems(
 
     In this order, each by number: closed issues and merged PRs still carrying flow labels
     (fixable by removing them); open items with more than one flow label; open PRs whose
-    flow label differs from their linked open issue's.
+    flow label differs from their linked open issue's; open PRs on a ``unit/<n>-…`` branch
+    that don't close issue ``n``.
     """
     problems: list[LabelProblem] = []
     for kind, items in (("closed issue", closed_issues), ("merged PR", merged_prs)):
@@ -155,4 +187,7 @@ def label_problems(
                     f"PR #{pr['number']} has {pr_flow[0]}, its issue #{linked} has {theirs[0]}"
                 )
                 problems.append(LabelProblem(pr["number"], message, ()))
+    for pr in sorted(open_prs, key=lambda i: i["number"]):
+        if message := _unlinked_unit_pr(pr):
+            problems.append(LabelProblem(pr["number"], message, ()))
     return problems

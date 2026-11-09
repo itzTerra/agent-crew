@@ -48,7 +48,9 @@ scenario yourself.
 ## 4. Open the PR
 
 Push the branch and open a PR from the template (`gh pr create --fill-first` then edit, or
-`--body-file`):
+`--body-file`). Write a body file only to a new path from `mktemp`, in the same command that
+runs `gh pr create`; never a fixed path such as `/tmp/pr.md`, which another session may have
+left with another unit's body. The body:
 
 - Summary, `Closes #N`, Spec changes;
 - How to run: `docker_run` from the config with `{branch}` replaced by your branch;
@@ -60,7 +62,8 @@ Before asking for review, squash your own fixups per the project's `merge_rules`
 
 Label the PR with the unit's kind (`crew:owner-facing` or `crew:internal`), then request review
 with `crew labels set-state N in-review`: it sets `crew:in-review` on the issue and the PR
-together. A unit in review holds its owned paths but no longer uses an agent slot in
+together. If it reports that the PR doesn't close `#N`, fix the body with `gh pr edit` and run
+it again. A unit in review holds its owned paths but no longer uses an agent slot in
 `crew next`.
 
 ## On changes requested
