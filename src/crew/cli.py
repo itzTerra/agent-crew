@@ -332,7 +332,10 @@ def _cmd_inbox(args: argparse.Namespace) -> int:
     print("Waiting on you")
     items = owner_inbox(units, open_prs)
     for item in items:
-        print(f"  #{item.number} [{item.ask}] blocks {item.blocks} — {item.title} — {item.url}")
+        print(
+            f"  #{item.number} [{item.ask}] {item.priority}, blocks {item.blocks}"
+            f" — {item.title} — {item.url}"
+        )
     if not items:
         print("  nothing")
 

@@ -4,15 +4,17 @@ from dataclasses import dataclass
 from typing import Literal
 
 from crew.graph import (
-    DO_FIRST,
     OWNER_ASKS,
     OWNER_PREFIX,
     Unit,
     dependents_count,
+    effective_ranks,
     label_names,
+    own_rank,
     priority_key,
+    rank_name,
 )
-from crew.labels import IDEA
+from crew.labels import IDEA, PRIORITY_LABELS
 
 ASKS = OWNER_ASKS
 INTERNAL = "crew:internal"
@@ -27,7 +29,7 @@ class InboxItem:
     url: str
     ask: Literal["accept", "decision", "stuck", "proposal"]
     blocks: int
-    do_first: bool
+    priority: str  # must, should or later: the effective priority
 
 
 def _ask(labels: set[str]) -> str | None:
@@ -41,11 +43,13 @@ def owner_inbox(units: dict[int, Unit], open_prs: list[dict]) -> list[InboxItem]
     """Items waiting on the owner, from issues' and PRs' ``crew:owner-*`` labels.
 
     A PR is listed under the issue it closes, or under its own number when it closes none.
-    Order: do-first items, then the number of units each blocks, then the oldest first.
+    Order: effective priority (see ``effective_ranks``; a PR counts at least as high as its
+    issue), then the number of units each blocks, then the oldest first.
     """
     counts = dependents_count(units)
+    ranks = effective_ranks(units)
     # Keyed by (number, ask): an issue and its PR may ask different things.
-    items: dict[tuple[int, str], tuple[InboxItem, str]] = {}
+    items: dict[tuple[int, str], tuple[InboxItem, str, int]] = {}
 
     for unit in units.values():
         ask = _ask(unit.labels)
@@ -56,9 +60,9 @@ def owner_inbox(units: dict[int, Unit], open_prs: list[dict]) -> list[InboxItem]
                 unit.url,
                 ask,  # type: ignore[arg-type]
                 counts.get(unit.number, 0),
-                DO_FIRST in unit.labels,
+                rank_name(ranks[unit.number]),
             )
-            items[(unit.number, ask)] = (item, unit.created_at)
+            items[(unit.number, ask)] = (item, unit.created_at, ranks[unit.number])
 
     for pr in open_prs:
         labels = label_names(pr)
@@ -68,22 +72,27 @@ def owner_inbox(units: dict[int, Unit], open_prs: list[dict]) -> list[InboxItem]
         linked = [ref["number"] for ref in pr.get("closingIssuesReferences") or []]
         number = linked[0] if linked else pr["number"]
         unit = units.get(number)
-        do_first = DO_FIRST in labels or bool(unit and DO_FIRST in unit.labels)
+        if unit is None:
+            rank = own_rank(labels)
+        elif labels & set(PRIORITY_LABELS):
+            rank = min(own_rank(labels), ranks[number])
+        else:
+            rank = ranks[number]  # an unlabeled PR takes its issue's priority
         item = InboxItem(
             number,
             pr.get("title", ""),
             pr.get("url", ""),
             ask,  # type: ignore[arg-type]
             counts.get(number, 0),
-            do_first,
+            rank_name(rank),
         )
-        items[(number, ask)] = (item, unit.created_at if unit else "")
+        items[(number, ask)] = (item, unit.created_at if unit else "", rank)
 
     ordered = sorted(
         items.values(),
-        key=lambda pair: priority_key(pair[0].do_first, pair[0].blocks, pair[1], pair[0].number),
+        key=lambda entry: priority_key(entry[2], entry[0].blocks, entry[1], entry[0].number),
     )
-    return [item for item, _ in ordered]
+    return [item for item, _, _ in ordered]
 
 
 def merged_without_owner(merged_prs: list[dict], since: str | None) -> list[dict]:

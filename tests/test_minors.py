@@ -50,7 +50,7 @@ def test_rough_order():
         [
             issue(1, labels=["crew:rough"], created="2026-01-02T00:00:00Z"),
             issue(2, labels=["crew:rough"], created="2026-01-01T00:00:00Z"),
-            issue(3, labels=["crew:rough", "crew:do-first"], created="2026-01-03T00:00:00Z"),
+            issue(3, labels=["crew:rough", "crew:must"], created="2026-01-03T00:00:00Z"),
             issue(4, labels=["crew:rough"], deps=[1]),
             issue(5, labels=["crew:rough", "crew:owner-decision"]),
             issue(6, labels=["crew:ready"]),

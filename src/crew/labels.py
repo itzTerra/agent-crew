@@ -22,6 +22,10 @@ class Label:
 # A parked idea: never carries a flow label and never waits on the owner.
 IDEA = "crew:idea"
 OWNER_PROPOSAL = "crew:owner-proposal"
+# Priority, highest first; the same scale as the requirements (Must, Should, Later).
+PRIORITY_LABELS = ("crew:must", "crew:should", "crew:later")
+# An item with no priority label counts as this one.
+DEFAULT_PRIORITY = "crew:should"
 
 LABELS: list[Label] = [
     # Work state.
@@ -38,7 +42,9 @@ LABELS: list[Label] = [
     # Parked.
     Label(IDEA, "ededed", "A parked idea: not a bet, not work, not waiting on the owner."),
     # Priority and kind.
-    Label("crew:do-first", "5319e7", "The owner wants this before anything else."),
+    Label("crew:must", "5319e7", "Needed for the current cut (MVP or the bet it serves)."),
+    Label("crew:should", "9b7fd4", "Wanted, but the cut works without it."),
+    Label("crew:later", "d8cdf0", "A nice-to-have or a later idea."),
     Label("crew:owner-facing", "c5def5", "Needs the owner's acceptance before merging."),
     Label("crew:internal", "bfdadc", "Merges after review and CI without the owner."),
     Label("crew:design", "f9d0c4", "Design work: the designer builds it, not the implementer."),

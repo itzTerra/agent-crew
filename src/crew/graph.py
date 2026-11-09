@@ -3,12 +3,11 @@
 import re
 from dataclasses import dataclass
 
-from crew.labels import IDEA
+from crew.labels import DEFAULT_PRIORITY, IDEA, PRIORITY_LABELS
 from crew.units import parse_unit_body
 
 READY = "crew:ready"
 ROUGH = "crew:rough"
-DO_FIRST = "crew:do-first"
 OWNER_PREFIX = "crew:owner-"
 OWNER_ASKS = ("accept", "decision", "stuck", "proposal")
 WAITING_ON_OWNER = frozenset(f"{OWNER_PREFIX}{ask}" for ask in OWNER_ASKS)
@@ -79,10 +78,13 @@ def _dependents(units: dict[int, Unit]) -> dict[int, set[int]]:
     return reverse
 
 
-def dependents_count(units: dict[int, Unit]) -> dict[int, int]:
-    """For each open unit, how many open units depend on it directly or indirectly."""
+def _all_dependents(units: dict[int, Unit]) -> dict[int, set[int]]:
+    """For each open unit, the open units depending on it directly or indirectly, without itself.
+
+    Cycle-safe: a unit in a cycle is not counted as its own dependent.
+    """
     reverse = _dependents(units)
-    counts: dict[int, int] = {}
+    found: dict[int, set[int]] = {}
     for start in units:
         seen = {start}
         stack = [start]
@@ -91,8 +93,39 @@ def dependents_count(units: dict[int, Unit]) -> dict[int, int]:
                 if dependent not in seen:
                     seen.add(dependent)
                     stack.append(dependent)
-        counts[start] = len(seen) - 1
-    return counts
+        found[start] = seen - {start}
+    return found
+
+
+def dependents_count(units: dict[int, Unit]) -> dict[int, int]:
+    """For each open unit, how many open units depend on it directly or indirectly."""
+    return {number: len(deps) for number, deps in _all_dependents(units).items()}
+
+
+def own_rank(labels: set[str]) -> int:
+    """The rank of an item's own priority label: 0 must, 1 should, 2 later.
+
+    With several priority labels the highest wins; with none, ``DEFAULT_PRIORITY`` applies.
+    """
+    ranks = [rank for rank, name in enumerate(PRIORITY_LABELS) if name in labels]
+    return min(ranks, default=PRIORITY_LABELS.index(DEFAULT_PRIORITY))
+
+
+def rank_name(rank: int) -> str:
+    """A rank as a word: ``must``, ``should`` or ``later``."""
+    return PRIORITY_LABELS[rank].removeprefix("crew:")
+
+
+def effective_ranks(units: dict[int, Unit]) -> dict[int, int]:
+    """For each open unit, its own rank raised to the best rank of any open unit depending on it.
+
+    So work that blocks higher-priority work sorts with it. Dependencies outside ``units`` are
+    ignored; cycles are safe.
+    """
+    return {
+        number: min(own_rank(units[n].labels) for n in {number, *deps})
+        for number, deps in _all_dependents(units).items()
+    }
 
 
 def find_cycles(units: dict[int, Unit]) -> list[list[int]]:
@@ -161,9 +194,9 @@ def _prefix(glob: str) -> str:
     return glob[: match.start()] if match else glob
 
 
-def priority_key(do_first: bool, blocks: int, created_at: str, number: int) -> tuple:
-    """Sort key shared by the inbox and the pick order."""
-    return (not do_first, -blocks, created_at or "~", number)
+def priority_key(rank: int, blocks: int, created_at: str, number: int) -> tuple:
+    """Sort key shared by the inbox and the pick order: priority, blockers, oldest, number."""
+    return (rank, -blocks, created_at or "~", number)
 
 
 def rough_order(units: dict[int, Unit]) -> list[int]:
@@ -173,13 +206,14 @@ def rough_order(units: dict[int, Unit]) -> list[int]:
     unit back: refining ahead of the workers is the point.
     """
     counts = dependents_count(units)
+    ranks = effective_ranks(units)
     rough = [
         u
         for u in units.values()
         if ROUGH in u.labels and IDEA not in u.labels and not u.labels & WAITING_ON_OWNER
     ]
     rough.sort(
-        key=lambda u: priority_key(DO_FIRST in u.labels, counts[u.number], u.created_at, u.number)
+        key=lambda u: priority_key(ranks[u.number], counts[u.number], u.created_at, u.number)
     )
     return [u.number for u in rough]
 
@@ -207,6 +241,7 @@ def ready_report(
     """
     in_cycle = {n for cycle in find_cycles(units) for n in cycle}
     counts = dependents_count(units)
+    ranks = effective_ranks(units)
     skipped: list[Skipped] = []
     eligible: list[Unit] = []
     for unit in units.values():
@@ -218,7 +253,7 @@ def ready_report(
         else:
             eligible.append(unit)
     eligible.sort(
-        key=lambda u: priority_key(DO_FIRST in u.labels, counts[u.number], u.created_at, u.number)
+        key=lambda u: priority_key(ranks[u.number], counts[u.number], u.created_at, u.number)
     )
 
     taken = [(n, units[n].owns) for n in [*running, *busy] if n in units]

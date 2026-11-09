@@ -23,23 +23,23 @@ def pr(number, labels=(), closes=(), merged_at=None, title=None):
     }
 
 
-def test_inbox_order_do_first_then_blocks():
+def test_inbox_order_priority_then_blocks():
     units = build_units(
         [
             issue(1, labels=["crew:owner-decision"], created="2026-01-03T00:00:00Z"),
-            issue(2, labels=["crew:owner-stuck"], created="2026-01-01T00:00:00Z"),
-            issue(3, labels=["crew:owner-proposal", "crew:do-first"]),
+            issue(2, labels=["crew:owner-stuck", "crew:later"], created="2026-01-01T00:00:00Z"),
+            issue(3, labels=["crew:owner-proposal", "crew:must"]),
             issue(4, deps=[1]),
             issue(5, deps=[4]),
             issue(6, labels=["crew:owner-accept"], created="2026-01-02T00:00:00Z"),
         ]
     )
     items = owner_inbox(units, open_prs=[])
-    assert [(i.number, i.ask, i.blocks, i.do_first) for i in items] == [
-        (3, "proposal", 0, True),
-        (1, "decision", 2, False),
-        (2, "stuck", 0, False),
-        (6, "accept", 0, False),
+    assert [(i.number, i.ask, i.blocks, i.priority) for i in items] == [
+        (3, "proposal", 0, "must"),
+        (1, "decision", 2, "should"),
+        (6, "accept", 0, "should"),
+        (2, "stuck", 0, "later"),
     ]
 
 
@@ -47,8 +47,20 @@ def test_pr_maps_to_linked_issue():
     units = build_units([issue(1), issue(2, deps=[1])])
     items = owner_inbox(units, [pr(10, labels=["crew:owner-accept"], closes=[1])])
     assert items == [
-        InboxItem(1, "PR 10", "https://github.com/example/app/pull/10", "accept", 1, False)
+        InboxItem(1, "PR 10", "https://github.com/example/app/pull/10", "accept", 1, "should")
     ]
+
+
+def test_pr_takes_its_issues_effective_priority():
+    units = build_units([issue(1, labels=["crew:later"]), issue(2, labels=["crew:must"], deps=[1])])
+    items = owner_inbox(units, [pr(10, labels=["crew:owner-accept", "crew:later"], closes=[1])])
+    assert [i.priority for i in items] == ["must"]
+
+
+def test_unlabeled_pr_takes_its_issues_priority():
+    units = build_units([issue(1, labels=["crew:later"])])
+    items = owner_inbox(units, [pr(10, labels=["crew:owner-accept"], closes=[1])])
+    assert [i.priority for i in items] == ["later"]
 
 
 def test_pr_without_linked_issue_in_inbox():
@@ -103,7 +115,8 @@ def test_inbox_cli_writes_state(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     assert main(["inbox", "--root", str(root)]) == 0
     out = capsys.readouterr().out
-    assert "#1 [decision] blocks 1 — Unit 1 — https://github.com/example/app/issues/1" in out
+    line = "#1 [decision] should, blocks 1 — Unit 1 — https://github.com/example/app/issues/1"
+    assert line in out
     assert "#9 PR 9" in out
     assert "#3 → #4 → #3" in out
     state = json.loads((root / ".crew/state.json").read_text(encoding="utf-8"))

@@ -50,7 +50,7 @@
   - `priority_key(rank: int, blocks: int, created_at: str, number: int) -> tuple` returning `(rank, -blocks, created_at or "~", number)`.
 - Produces in `crew.inbox`: `InboxItem` field `do_first: bool` replaced by `priority: str` (a `rank_name`), same position (last).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/test_github.py::test_label_set` replace `"crew:do-first"` with `"crew:must", "crew:should", "crew:later"` (same position).
 
@@ -102,24 +102,24 @@ def test_pr_takes_its_issues_effective_priority():
 The CLI assertion at `tests/test_inbox.py:106` becomes
 `"#1 [decision] should, blocks 1 — Unit 1 — https://github.com/example/app/issues/1"`.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_graph.py tests/test_minors.py tests/test_inbox.py tests/test_github.py -q`
 Expected: FAIL (import errors for `own_rank`, `effective_ranks`; label set mismatch).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - `labels.py`: replace the `crew:do-first` `Label` with three labels (descriptions from the spec's table, each ending with `.`; colors builder's choice, one hue, strongest for must); add the two constants.
 - `graph.py`: remove `DO_FIRST`; add the functions above. `effective_ranks` reuses `_dependents` and the same seen-set traversal as `dependents_count` (cycle-safe). `rough_order` and `ready_report` sort with `priority_key(ranks[u.number], counts[u.number], ...)`.
 - `inbox.py`: compute `ranks = effective_ranks(units)`. A unit's item uses `ranks[unit.number]`. A PR's item uses `min(own_rank(labels), ranks[number])` when its linked number is a unit, else `own_rank(labels)`. Sort with the rank; store `rank_name(rank)` in `InboxItem.priority`. Update the `owner_inbox` docstring order line.
 - `cli.py:335`: `print(f"  #{item.number} [{item.ask}] {item.priority}, blocks {item.blocks} — {item.title} — {item.url}")`.
 
-- [ ] **Step 4: Run the whole suite and lint**
+- [x] **Step 4: Run the whole suite and lint**
 
 Run: `uv run pytest -q && uv run ruff check . && uv run ruff format --check .`
 Expected: all pass; `grep -rn "do_first\|DO_FIRST\|do-first" src tests` prints nothing.
 
-- [ ] **Step 5: Commit** (with this plan's checkbox updates)
+- [x] **Step 5: Commit** (with this plan's checkbox updates)
 
 ```bash
 git add src/crew tests docs/superpowers/plans/2026-11-09-issue-priority.md

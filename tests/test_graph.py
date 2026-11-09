@@ -3,8 +3,10 @@ from crew.graph import (
     Unit,
     build_units,
     dependents_count,
+    effective_ranks,
     find_cycles,
     next_ready,
+    own_rank,
     owns_overlap,
     ready_report,
     rough_order,
@@ -90,12 +92,31 @@ def test_next_ready_order_and_cycles():
     units = units_of(
         issue(1, labels=["crew:ready"], owns=["a/"], created="2026-01-02T00:00:00Z"),
         issue(2, labels=["crew:ready"], owns=["b/"], created="2026-01-01T00:00:00Z"),
-        issue(3, labels=["crew:ready", "crew:do-first"], owns=["c/"]),
+        issue(3, labels=["crew:ready", "crew:must"], owns=["c/"]),
         issue(4, deps=[1], owns=["d/"]),
         issue(5, labels=["crew:ready"], deps=[6], owns=["e/"]),
         issue(6, labels=["crew:ready"], deps=[5], owns=["f/"]),
+        issue(7, labels=["crew:ready", "crew:later"], owns=["g/"], created="2025-01-01T00:00:00Z"),
     )
-    assert next_ready(units, running=[], max_agents=9) == [3, 1, 2]
+    assert next_ready(units, running=[], max_agents=9) == [3, 1, 2, 7]
+
+
+def test_own_rank():
+    assert own_rank({"crew:later"}) == 2
+    assert own_rank(set()) == 1
+    assert own_rank({"crew:later", "crew:must"}) == 0
+
+
+def test_effective_ranks_raise_blockers():
+    units = units_of(
+        issue(1, labels=["crew:later"]),
+        issue(2, labels=["crew:later"], deps=[1]),
+        issue(3, labels=["crew:must"], deps=[2]),
+        issue(4, labels=["crew:later"], deps=[99]),
+        issue(5, labels=["crew:later"], deps=[6]),
+        issue(6, labels=["crew:should"], deps=[5]),
+    )
+    assert effective_ranks(units) == {1: 0, 2: 0, 3: 0, 4: 2, 5: 1, 6: 1}
 
 
 def test_next_ready_skips_parked_units():
