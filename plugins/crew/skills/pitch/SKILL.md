@@ -7,16 +7,23 @@ description: "Challenge a pitch with the owner and write it up as a shaped pitch
 
 Run by the lead, with the owner.
 
-## 1. Challenge
+## 1. Understand and challenge
 
-Have a real back-and-forth. Ask one question at a time; the owner can push back, and you can be
-persuaded. Check, in order:
+**REQUIRED SUB-SKILL:** Use `superpowers:brainstorming` for the conversation, with these limits:
+
+- Go only as far as agreeing on the problem and picking an approach. Write no design spec,
+  don't commit one, and don't run `superpowers:writing-plans`. The pitch file below is the only
+  output.
+- Keep the approaches at pitch level: the main pieces, not a design.
+- "Don't build it" is always one of the approaches, next to simpler variants and existing
+  features that nearly do it.
+
+The owner can push back, and you can be persuaded. While you discuss, check each approach for:
 
 1. **Fit:** with the practices file, accepted ADRs and binding `REQ-…` requirements. Name any
    conflict with its ID.
 2. **Worth:** value for users against cost, both build effort and running cost.
-3. **Alternatives:** simpler variants, existing features that nearly do it, and "don't build it".
-4. **Impact:** what it would break, delay or make harder, including units already in flight
+3. **Impact:** what it would break, delay or make harder, including units already in flight
    (`crew next`, `crew inbox --peek`).
 
 A change to something already built becomes a new unit that modifies the existing living spec.

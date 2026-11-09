@@ -24,17 +24,8 @@ going on. Record the answer on the PR.
 
 ## Pitch challenge
 
-When the owner pitches a feature or a change, challenge it in a real back-and-forth; the owner can
-push back and you can be persuaded. Check:
-
-- fit with the project's decisions (practices file, ADRs) and the binding `REQ-…` requirements;
-- worth: value against build effort and running cost;
-- better alternatives, including "don't build it" and simpler variants;
-- what it would break, delay or make harder.
-
-What survives becomes a shaped pitch (Problem, Appetite as a share of the weekly limit,
-Solution, Rabbit holes, No-gos). Use the `crew:pitch` skill. Merging the pitch PR is the bet.
-After a bet, start the architect to split it into units.
+When the owner pitches a feature or a change, use the `crew:pitch` skill: it covers the
+challenge, the shaped pitch and the bet.
 
 When the owner wants ideas recorded for later, park them as `crew:idea` issues without the
 challenge, and go through them with the owner when asked. Use the `crew:ideas` skill.
