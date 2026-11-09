@@ -35,12 +35,14 @@ Work in the unit's worktree, in this order:
 
 ## 3. Merge
 
-Wait for CI to be green again (`gh pr checks P --watch`). Then merge **from the main checkout,
-not from the unit's worktree**: `--delete-branch` makes gh switch the local checkout to `main`,
-which fails inside a worktree while `main` is checked out elsewhere.
+Wait for CI to be green again (`gh pr checks P --watch`). Then merge, running `gh pr merge` as
+a command of its own, from any folder (not chained after `cd` or with `&&`: crew sessions allow
+exactly that command, and auto mode refuses a chained one):
 
-- `gh pr merge P --rebase --delete-branch`, or
-- `gh pr merge P --squash --delete-branch` when the history is a single commit anyway.
+- `gh pr merge P --rebase`, or
+- `gh pr merge P --squash` when the history is a single commit anyway.
+
+Then delete the remote branch: `git push origin --delete <branch>`.
 
 Then check what landed. Take the merge commit from `gh pr view P --json mergeCommit` and run
 `crew check-owns P --range <merge-sha>^..<merge-sha>` (for a rebase merge of several commits,

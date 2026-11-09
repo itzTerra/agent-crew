@@ -60,7 +60,7 @@ def test_agent_argv_roles_and_model():
         "--agent",
         "crew:implementer",
         "--settings",
-        agent.STATUS_LINE_SETTINGS,
+        agent.session_settings("implementer"),
         "Use crew:implement on issue #12",
     ]
     assert agent_argv("reviewer", "Use crew:review on PR #3", "sonnet") == [
@@ -70,7 +70,7 @@ def test_agent_argv_roles_and_model():
         "--model",
         "sonnet",
         "--settings",
-        agent.STATUS_LINE_SETTINGS,
+        agent.session_settings("reviewer"),
         "Use crew:review on PR #3",
     ]
     assert agent_argv("lead", None, None) == [
@@ -205,7 +205,7 @@ def test_launch_execs_claude_with_env(project):
         "--permission-mode",
         "auto",
         "--settings",
-        agent.STATUS_LINE_SETTINGS,
+        agent.session_settings("reviewer"),
         "Use crew:review on PR #3",
     ]
     assert env["GH_TOKEN"] == TOKEN
@@ -390,3 +390,14 @@ def test_plugin_enabled_by_project_settings(tmp_path):
         json.dumps({"enabledPlugins": {"crew@agent-crew": False}})
     )
     assert agent.plugin_installed(env, project) is False
+
+
+def test_merging_roles_may_merge_in_auto_mode():
+    # Auto mode's classifier refuses `gh pr merge`; internal units must merge unattended.
+    for role in ("implementer", "reviewer"):
+        settings = json.loads(agent.session_settings(role))
+        assert settings["permissions"]["allow"] == ["Bash(gh pr merge:*)"]
+        assert settings["statusLine"]["command"] == "crew usage record"
+        assert agent_argv(role, None, None)[-1] == agent.session_settings(role)
+    for role in ("lead", "architect", "designer"):
+        assert "permissions" not in json.loads(agent.session_settings(role))

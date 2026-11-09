@@ -30,9 +30,22 @@ PLUGIN_INSTALL = (
     " && claude plugin install crew@agent-crew"
 )
 PLUGIN_PREFIX = "crew@"
-STATUS_LINE_SETTINGS = json.dumps(
-    {"statusLine": {"type": "command", "command": "crew usage record"}}
-)
+STATUS_LINE = {"type": "command", "command": "crew usage record"}
+STATUS_LINE_SETTINGS = json.dumps({"statusLine": STATUS_LINE})
+# Roles that merge PRs (crew:merge). Auto mode's classifier refuses `gh pr merge` as a merge
+# without review, but for these roles the review gate is the crew's own, so it is allowed.
+MERGING_ROLES = frozenset({"implementer", "reviewer"})
+MERGE_ALLOW = ["Bash(gh pr merge:*)"]
+
+
+def session_settings(role: str) -> str:
+    """The ``--settings`` JSON for a ``role`` session: the status line, and merging for
+    the roles that merge."""
+    settings: dict = {"statusLine": STATUS_LINE}
+    if role in MERGING_ROLES:
+        settings["permissions"] = {"allow": MERGE_ALLOW}
+    return json.dumps(settings)
+
 
 # Seams for tests: how ``gh`` is run and how the session replaces this process.
 RUN = subprocess.run
@@ -264,7 +277,7 @@ def agent_argv(role: str, prompt: str | None, model: str | None, auto: bool = Fa
         argv += ["--model", model]
     if auto:
         argv += ["--permission-mode", "auto"]
-    argv += ["--settings", STATUS_LINE_SETTINGS]
+    argv += ["--settings", session_settings(role)]
     if prompt:
         argv.append(prompt)
     return argv

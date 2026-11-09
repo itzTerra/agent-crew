@@ -144,3 +144,10 @@ def test_implement_reuses_run_worktree():
 def test_lead_points_to_run_skills():
     lead = (PLUGIN / "agents" / "lead.md").read_text(encoding="utf-8")
     assert "## Runs" in lead and "crew:run" in lead and "crew:budget" in lead
+
+
+def test_merge_runs_gh_pr_merge_on_its_own():
+    # crew agent allows `gh pr merge` by prefix; a chained `cd … && gh pr merge` isn't allowed.
+    text = skill_text("merge")
+    assert "a command of its own" in text and "--delete-branch" not in text
+    assert "git push origin --delete" in text

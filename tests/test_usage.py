@@ -73,8 +73,8 @@ def test_read_usage_missing_or_bad(tmp_path):
 
 def test_agent_argv_settings_and_auto():
     settings = json.dumps({"statusLine": {"type": "command", "command": "crew usage record"}})
-    assert agent_argv("implementer", "go", None, auto=True) == [
-        "claude", "--agent", "crew:implementer", "--permission-mode", "auto",
+    assert agent_argv("architect", "go", None, auto=True) == [
+        "claude", "--agent", "crew:architect", "--permission-mode", "auto",
         "--settings", settings, "go",
     ]  # fmt: skip
     assert agent_argv("lead", None, "sonnet") == [
