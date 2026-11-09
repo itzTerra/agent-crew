@@ -45,6 +45,8 @@ def test_init_appends_to_existing_gitignore(tmp_path):
         "node_modules/",
         ".crew/state.json",
         ".crew/run.json",
+        ".crew/run-events.jsonl",
+        ".crew/watch.json",
     ]
 
 
@@ -82,4 +84,6 @@ def test_init_ignores_run_file(tmp_path):
     assert (tmp_path / ".gitignore").read_text().splitlines() == [
         ".crew/state.json",
         ".crew/run.json",
+        ".crew/run-events.jsonl",
+        ".crew/watch.json",
     ]

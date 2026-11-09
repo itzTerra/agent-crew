@@ -5,7 +5,12 @@ from pathlib import Path
 
 from crew import __version__
 
-GITIGNORE_ENTRIES = (".crew/state.json", ".crew/run.json")
+GITIGNORE_ENTRIES = (
+    ".crew/state.json",
+    ".crew/run.json",
+    ".crew/run-events.jsonl",
+    ".crew/watch.json",
+)
 
 # Target path in the project -> template path inside the crew package.
 TEMPLATES = {
