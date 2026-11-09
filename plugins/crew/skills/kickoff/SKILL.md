@@ -43,6 +43,10 @@ Run `crew check-docs` until it reports no errors; `XREF-UNCITED` warnings are ex
 there are no living specs yet. Then commit it on a branch and open a PR labeled
 `crew:owner-accept` and `crew:owner-facing`.
 
+Then file one `crew:idea` issue per MVP epic, each naming its epic and linking the baseline PR;
+they are promoted to pitches later with the `crew:ideas` skill. If the MVP cut changes in the
+baseline PR's review, adjust these ideas while relaying that feedback.
+
 ## 3. File the first decisions
 
 File the first owner decisions as issues labeled `crew:rough` and `crew:owner-facing`, each for

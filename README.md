@@ -9,8 +9,8 @@ The plugin gives a project:
 
 - **role agents:** `crew:lead`, `crew:architect`, `crew:designer`, `crew:implementer`,
   `crew:reviewer`;
-- **skills:** `crew:inbox`, `crew:kickoff`, `crew:pitch`, `crew:refine`, `crew:relay`,
-  `crew:implement`, `crew:review`, `crew:merge`, `crew:run`, `crew:budget`;
+- **skills:** `crew:inbox`, `crew:kickoff`, `crew:pitch`, `crew:ideas`, `crew:refine`,
+  `crew:relay`, `crew:implement`, `crew:review`, `crew:merge`, `crew:run`, `crew:budget`;
 - **document standards** for requirements, living specs, ADRs and shaped pitches, with a CI
   format check (`crew check-docs`);
 - a **label set**, an issue template for units, and a PR template;
@@ -33,7 +33,8 @@ one, the CLI command you can run yourself instead.
 2. **Deal with each item on GitHub:** approve a PR, comment what to change, answer a question.
    Or tell the lead, and it posts your words for you (`crew:relay`).
 3. **Pitch ideas** to the lead (`crew:pitch`). It challenges them with you, and the architect
-   turns the ones you accept into small units of work (`crew:refine`).
+   turns the ones you accept into small units of work (`crew:refine`). Or **park ideas** for
+   later without the challenge, and go through them when you want (`crew:ideas`).
 4. **Start a run** when you leave (`crew:run`; or `crew run --until 07:00`). Agents refine,
    build, review and merge internal work, turn your comments into fixes, and stop at the end
    time or the budget cap. Anything that needs you waits in the inbox for next time.
@@ -185,9 +186,9 @@ yourself, for example in herdr panes, one per agent.
 crew agent lead
 ```
 
-Then ask for the inbox (`crew:inbox`), pitch an idea (`crew:pitch`), or run the kickoff once per
-project (`crew:kickoff`). Give feedback on PRs directly on GitHub, or tell the lead and it posts it
-for you (`crew:relay`).
+Then ask for the inbox (`crew:inbox`), pitch an idea (`crew:pitch`), park ideas (`crew:ideas`),
+or run the kickoff once per project (`crew:kickoff`). Give feedback on PRs directly on GitHub, or
+tell the lead and it posts it for you (`crew:relay`).
 
 **Workers**, each in its own pane:
 

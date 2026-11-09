@@ -22,7 +22,7 @@ back later to work that already passed review.
 
 | Role | Model | Does |
 |---|---|---|
-| **Lead** | Opus | Shows the inbox, runs the kickoff and the pitch challenge, writes shaped pitches, relays owner feedback, marks do-first units, proposes retrospectives |
+| **Lead** | Opus | Shows the inbox, runs the kickoff and the pitch challenge, writes shaped pitches, parks ideas, relays owner feedback, marks do-first units, proposes retrospectives |
 | **Architect** | Opus | Writes decision documents and ADRs, splits bets into units, refines rough units to ready |
 | **Designer** | Sonnet | The design system and flow and screen alternatives, as clickable mockups |
 | **Implementer** | Sonnet | One unit end to end: branch, tests, living spec update, pull request |
@@ -41,20 +41,29 @@ Refinement is not a separate role: the architect or the lead does it in refineme
      can return any of it as a new unit.
 3. The owner acts on each item on GitHub (comment, approve) or tells the lead, who posts the
    owner's words on the PR as a quote.
-4. Optionally, the owner pitches ideas.
+4. Optionally, the owner pitches or parks ideas.
 
 ## Upstream: kickoff, pitches and bets
 
 **Kickoff** (once per project): the lead and the owner condense existing material into a
 requirements baseline: goals, main user flows, an epic list and the MVP cut. Then the first
 owner decisions follow: architecture and stack, operations and checks, design-system
-alternatives. Features are not specified in detail at kickoff.
+alternatives. Features are not specified in detail at kickoff. Each MVP epic is filed as a
+parked idea, to be pitched later.
 
 **Pitches**: every idea, the owner's or an agent's proposal, goes through a real back-and-forth
 challenge by the lead: fit with decisions and requirements, worth, better alternatives
 (including not building it), and what it would delay or break. What survives becomes a **shaped
 pitch** with five sections: Problem, Appetite (a share of the weekly usage limit), Solution
 (rough), Rabbit holes, No-gos.
+
+**Parked ideas**: an idea the owner wants recorded but not challenged yet is filed as an issue
+labeled `crew:idea`, from a session with the lead, an owner comment on a PR asking for
+something for later, or an agent's discovered work. A parked idea is not a bet, not work and
+not waiting on the owner; `crew inbox` shows only how many there are. When the owner goes
+through them, the lead pitches the one they pick. A pitch PR from an idea says `From idea #N`
+and the idea issue is closed once it is open; if the bet is declined as "not now", the idea is
+reopened.
 
 **Bets**: the pitch is proposed as a pull request; merging it is the owner's bet. Only a bet
 becomes work. Work that runs past its appetite comes back to the owner as a decision; it never

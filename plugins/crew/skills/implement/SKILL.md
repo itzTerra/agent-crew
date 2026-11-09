@@ -74,3 +74,8 @@ When the PR has `crew:changes-requested`: read every new comment, the owner's fi
 comment, squash your fixups and push with `git push --force-with-lease`, then request review
 again with `crew labels set-state N in-review`. Do this after owner feedback too: it removes
 `crew:owner-accept`, so the PR never carries both.
+
+A comment that asks for something for later, or outside the unit, is not fixed in the PR: file
+it as a new issue labeled only `crew:idea` that links the PR (unless the lead already filed one
+and gave its URL), and reply with the issue's full URL. If nothing else needs changing, say so
+in the reply and move the PR on as above.

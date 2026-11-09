@@ -26,6 +26,8 @@ Run by the lead, with the owner.
      and set the label the unit needs next (usually `crew:rough` for refinement).
 4. Show the "Merged without you" list and ask whether any of them should be returned as a new
    unit. If so, file it as `crew:rough` with a link to the merged PR.
+   If `crew inbox` printed `Parked ideas: N`, mention it and offer to go through them with the
+   `crew:ideas` skill.
 5. If cycles are listed, propose which dependency to drop, and fix the issue bodies once the
    owner agrees.
 

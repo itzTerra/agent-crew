@@ -1,6 +1,6 @@
 ---
 name: pitch
-description: "Challenge a pitch with the owner and write it up as a shaped pitch for the owner to bet on. Use when the owner proposes a feature or change, or for a crew:owner-proposal item. Run by the lead."
+description: "Challenge a pitch with the owner and write it up as a shaped pitch for the owner to bet on. Use when the owner proposes a feature or change, or for a crew:owner-proposal or crew:idea issue. Run by the lead."
 ---
 
 # Pitch
@@ -43,6 +43,10 @@ Run `crew check-docs`; it must report no errors for the pitch.
 Commit the pitch on a branch `pitch/NNNN`, push it and open a PR labeled `crew:owner-accept`
 and `crew:owner-facing`. **Merging that PR is the bet.** If the owner declines, close the PR
 with their reason quoted.
+
+When the pitch started from a `crew:idea` issue, the PR body says `From idea #N`, never a
+closing reference to it. Once the PR is open, close the idea issue with a comment linking the
+PR. If the owner declines the bet as "not now", reopen the idea; see the `crew:ideas` skill.
 
 ## 4. After the bet
 

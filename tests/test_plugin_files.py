@@ -72,7 +72,8 @@ def test_discovered_work_parks_ideas(name):
 
 
 SKILLS = [
-    "inbox", "kickoff", "pitch", "refine", "relay", "implement", "review", "merge", "run", "budget",
+    "inbox", "kickoff", "pitch", "ideas", "refine", "relay", "implement", "review", "merge", "run",
+    "budget",
 ]  # fmt: skip
 MAX_SKILL_BODY_LINES = 120
 CLI_MENTION = re.compile(r"(?:^|`|\$ )crew ([a-z][a-z-]*)", re.MULTILINE)
@@ -166,3 +167,27 @@ def test_merge_runs_gh_pr_merge_on_its_own():
     text = skill_text("merge")
     assert "a command of its own" in text and "--delete-branch" not in text
     assert "git push origin --delete" in text
+
+
+def test_ideas_skill_files_and_promotes():
+    text = skill_text("ideas")
+    for phrase in ("crew:idea", "gh issue list", "full URL", "crew:pitch", "quoted"):
+        assert phrase in text
+
+
+def test_promoted_idea_is_not_closed_by_the_pitch_pr():
+    for text in (skill_text("pitch"), skill_text("ideas")):
+        assert "From idea #N" in text
+    assert "Closes #N" not in skill_text("pitch")
+
+
+def test_feedback_for_later_becomes_an_idea():
+    for text in (skill_text("implement"), skill_text("relay")):
+        assert "crew:idea" in text
+
+
+def test_kickoff_parks_mvp_epics_and_inbox_mentions_ideas():
+    assert "crew:idea" in skill_text("kickoff")
+    assert "Parked ideas" in skill_text("inbox")
+    lead = (PLUGIN / "agents" / "lead.md").read_text(encoding="utf-8")
+    assert "crew:ideas" in lead

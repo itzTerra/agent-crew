@@ -207,7 +207,7 @@ git commit -m "feat(agents): park speculative discovered work as crew:idea"
 - Modify: `plugins/crew/skills/{pitch,inbox,kickoff,implement,relay}/SKILL.md`, `plugins/crew/agents/lead.md`, `docs/workflow.md` (Roles row for the lead, "The owner's session", "Pitches", "Kickoff"), `README.md` (skills list, day-to-day use)
 - Test: `tests/test_plugin_files.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add `"ideas"` to `SKILLS`, and:
 
@@ -236,16 +236,16 @@ def test_kickoff_parks_mvp_epics_and_inbox_mentions_ideas():
     assert "crew:ideas" in lead
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `uv run pytest tests/test_plugin_files.py -v`
 Expected: FAIL (missing `ideas` skill and phrases).
 
-- [ ] **Step 3: Write `plugins/crew/skills/ideas/SKILL.md`** (frontmatter `name: ideas`; description: park one or many ideas as `crew:idea` issues without the pitch challenge, or go through the parked ideas with the owner; run by the lead). Two sections:
+- [x] **Step 3: Write `plugins/crew/skills/ideas/SKILL.md`** (frontmatter `name: ideas`; description: park one or many ideas as `crew:idea` issues without the pitch challenge, or go through the parked ideas with the owner; run by the lead). Two sections:
   - **Park:** for each idea the owner gives, search open issues (`gh issue list --state open --search "<words>"`); if one covers it, comment the owner's words there; else file an issue labeled only `crew:idea` with a short title, the owner's words quoted as theirs, and where it came from. No challenge, no questions beyond what's needed to tell ideas apart. Report each filed or commented issue with its full URL.
   - **Go through:** list open `crew:idea` issues (`gh issue list --label crew:idea`), the owner picks one, run `crew:pitch` on it. Dropped → close with the owner's reason quoted. Survives → the pitch PR body says `From idea #N` (never `Closes #N`: that would make the run treat the idea as the PR's unit); once the PR is open, close the idea issue with a comment linking it. Declined bet: "not now" → reopen the idea and add `crew:idea`; "no" → leave it closed.
 
-- [ ] **Step 4: Edit the other files**
+- [x] **Step 4: Edit the other files**
   - `pitch`: description also names a `crew:idea` issue as a starting point; in "3. Propose the bet", add the `From idea #N` / close-the-idea rule and the declined-bet rule (point to `crew:ideas`).
   - `inbox`: after step 4, if `crew inbox` printed `Parked ideas: N`, mention it and offer `crew:ideas` to go through them.
   - `kickoff`: after step 2, file one `crew:idea` issue per MVP epic, each naming its epic and linking the baseline PR; if the MVP cut changes in that PR's review, adjust the ideas while relaying the feedback.
@@ -254,12 +254,12 @@ Expected: FAIL (missing `ideas` skill and phrases).
   - `docs/workflow.md`: the lead's Roles row mentions parking ideas; "The owner's session" step 4 becomes "pitches or parks ideas"; "Pitches" gains a short paragraph on parked ideas and promotion; "Kickoff" mentions the epic ideas.
   - `README.md`: add `crew:ideas` to the skills list; in day-to-day use, add parking ideas next to "Pitch ideas".
 
-- [ ] **Step 5: Run the whole suite and the docs check on the repo's own docs**
+- [x] **Step 5: Run the whole suite and the docs check on the repo's own docs**
 
 Run: `uv run pytest -q`
 Expected: all pass, including the skill body length limit.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add plugins/crew docs/workflow.md README.md tests/test_plugin_files.py docs/superpowers/plans/2026-11-09-parked-ideas.md
