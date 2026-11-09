@@ -173,7 +173,8 @@ def label_problems(
     """Flow labels that disagree with an item's state or with each other.
 
     In this order, each by number: closed issues and merged PRs still carrying flow labels
-    (fixable by removing them); open items with more than one flow label; open issues with
+    (fixable by removing them); open items with more than one flow label or more than one
+    priority label; open issues with
     ``crew:idea`` and a flow label or ``crew:owner-proposal``; open PRs whose
     flow label differs from their linked open issue's; open PRs on a ``unit/<n>-…`` branch
     that don't close issue ``n``.
@@ -189,6 +190,10 @@ def label_problems(
         flow = _flow_of(_names(item))
         if len(flow) > 1:
             message = f"has more than one state label: {', '.join(flow)}"
+            problems.append(LabelProblem(item["number"], message, ()))
+        priorities = [name for name in PRIORITY_LABELS if name in _names(item)]
+        if len(priorities) > 1:
+            message = f"has more than one priority label: {', '.join(priorities)}"
             problems.append(LabelProblem(item["number"], message, ()))
     for item in sorted(open_issues, key=lambda i: i["number"]):
         names = _names(item)

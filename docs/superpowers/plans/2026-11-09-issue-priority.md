@@ -135,7 +135,7 @@ git commit -m "feat: order work by must/should/later priority instead of do-firs
 **Interfaces:**
 - Consumes: `PRIORITY_LABELS` (Task 1).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 def test_label_problems_two_priorities():
@@ -153,17 +153,17 @@ def test_label_problems_two_priorities():
 
 (Use the `issue`/`pr` helpers already used in `tests/test_labels.py`.) Also extend `test_label_problems_idea_with_work_or_proposal_label` with `issue(5, labels=["crew:idea", "crew:later"])` producing no problem.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/test_labels.py -q` — Expected: FAIL on the new test.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `label_problems`, right after the "more than one state label" loop (same open issues + PRs, by number), emit the message above with names in `PRIORITY_LABELS` order, `fix_remove=()`.
 
-- [ ] **Step 4: Run and lint** — `uv run pytest -q && uv run ruff check .` — Expected: pass.
+- [x] **Step 4: Run and lint** — `uv run pytest -q && uv run ruff check .` — Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/labels.py tests/test_labels.py docs/superpowers/plans/2026-11-09-issue-priority.md

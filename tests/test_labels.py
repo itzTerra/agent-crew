@@ -232,6 +232,7 @@ def test_label_problems_idea_with_work_or_proposal_label():
         open_issues=[
             issue(3, labels=["crew:idea"]),
             issue(4, labels=["crew:idea", "crew:rough"]),
+            issue(5, labels=["crew:idea", "crew:later"]),
             issue(6, labels=["crew:idea", "crew:owner-proposal"]),
         ],
         closed_issues=[],
@@ -241,4 +242,17 @@ def test_label_problems_idea_with_work_or_proposal_label():
     assert problems == [
         LabelProblem(4, "parked idea also has crew:rough", ()),
         LabelProblem(6, "parked idea also has crew:owner-proposal", ()),
+    ]
+
+
+def test_label_problems_two_priorities():
+    problems = label_problems(
+        open_issues=[issue(3, labels=["crew:must"]), issue(4, labels=["crew:must", "crew:later"])],
+        closed_issues=[],
+        open_prs=[pr(9, labels=["crew:should", "crew:later"])],
+        merged_prs=[],
+    )
+    assert problems == [
+        LabelProblem(4, "has more than one priority label: crew:must, crew:later", ()),
+        LabelProblem(9, "has more than one priority label: crew:should, crew:later", ()),
     ]
