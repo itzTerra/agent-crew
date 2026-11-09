@@ -181,7 +181,7 @@ git commit -m "feat(labels): report items with more than one priority label"
 **Interfaces:**
 - Consumes: `PRIORITIES` from `crew.docs.requirements`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Fixtures: add after `## Appetite`'s paragraph:
 
@@ -212,15 +212,15 @@ def test_pitch_priority_tolerates_emphasis(tmp_path):
 
 Line numbers in existing tests (`test_pitch_appetite_without_percent` expects line 7) stay valid only if the section is placed after Appetite's paragraph; keep it there.
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/docs/test_pitches.py -q` — Expected: FAIL.
+- [x] **Step 2: Run to verify they fail** — `uv run pytest tests/docs/test_pitches.py -q` — Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `Priority` is *not* added to `SECTIONS`. After the section loop: if `"priority"` is missing → `Finding(path, 1, "PITCH-PRIORITY", "missing `## Priority` section (Must, Should or Later)", severity="warning")`. If present, take the first non-blank line, `strip("`*_ .")`; if not in `PRIORITIES` → error at the heading line: ``priority `<value>` is not one of Must, Should, Later``. Update the module docstring. Add `## Priority` to the pitch skill's section list.
 
-- [ ] **Step 4: Run the whole suite** — `uv run pytest -q` (the `check-docs` CLI tests over `tests/fixtures/project` must stay clean) — Expected: pass.
+- [x] **Step 4: Run the whole suite** — `uv run pytest -q` (the `check-docs` CLI tests over `tests/fixtures/project` must stay clean) — Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/docs/pitches.py src/crew/templates tests plugins/crew/skills/pitch/SKILL.md docs/superpowers/plans/2026-11-09-issue-priority.md

@@ -1,9 +1,13 @@
-"""Shaped pitches: five fixed sections and an appetite in share of the weekly limit."""
+"""Shaped pitches: five fixed sections, an appetite in share of the weekly limit, a priority.
+
+A missing ``## Priority`` section is only a warning, so pitches written before it existed pass.
+"""
 
 import re
 from pathlib import Path
 
 from crew.docs.markdown import headings, normalize, read_lines
+from crew.docs.requirements import PRIORITIES
 from crew.findings import Finding
 
 SECTIONS = ("Problem", "Appetite", "Solution", "Rabbit holes", "No-gos")
@@ -49,4 +53,18 @@ def parse_pitch(path: Path) -> list[Finding]:
                 "appetite must give a share of the weekly limit, for example `20 %`",
             )
         )
+    findings.extend(_priority_findings(path, sections.get("priority")))
     return findings
+
+
+def _priority_findings(path: Path, section: tuple[int, list[str]] | None) -> list[Finding]:
+    """A warning when the priority section is missing, an error when its value is unknown."""
+    allowed = ", ".join(PRIORITIES)
+    if section is None:
+        message = f"missing `## Priority` section ({allowed})"
+        return [Finding(path, 1, "PITCH-PRIORITY", message, severity="warning")]
+    line, body = section
+    value = next((text.strip().strip("`*_ .") for text in body if text.strip()), "")
+    if value in PRIORITIES:
+        return []
+    return [Finding(path, line, "PITCH-PRIORITY", f"priority `{value}` is not one of {allowed}")]

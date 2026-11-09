@@ -8,6 +8,10 @@ Cooks retype ingredients into a separate shopping list app.
 
 10 % of the weekly limit.
 
+## Priority
+
+Must
+
 ## Solution
 
 Add a recipe's ingredients to one shopping list, merging repeated items.

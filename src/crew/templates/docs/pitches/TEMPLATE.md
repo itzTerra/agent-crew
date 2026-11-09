@@ -8,6 +8,10 @@
 
 <How much it is worth, as a share of the weekly limit, for example 20 %.>
 
+## Priority
+
+<Must, Should or Later: the highest priority of the requirements it serves.>
+
 ## Solution
 
 <The rough solution: the main elements, not a detailed design.>

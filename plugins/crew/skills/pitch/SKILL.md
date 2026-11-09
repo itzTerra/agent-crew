@@ -38,6 +38,7 @@ free number:
 # Pitch NNNN: <title>
 ## Problem
 ## Appetite      <- a share of the weekly limit, for example "15 %"
+## Priority      <- Must, Should or Later
 ## Solution      <- rough: the main elements, not a design
 ## Rabbit holes
 ## No-gos
