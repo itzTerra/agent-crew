@@ -21,6 +21,7 @@ from crew.supervisor import worktrees
 from crew.supervisor.herdr import Herdr, HerdrError
 from crew.supervisor.planner import Action, Kind, Live, Plan, plan
 from crew.supervisor.snapshot import MARKER, Snapshot, owner_activity, take_snapshot
+from crew.supervisor.trust import TrustError, trust_folder
 from crew.supervisor.until import CONTINUE, FIVE_HOUR_FULL, RESET_SLACK, WIND_DOWN
 from crew.usage import Usage, is_fresh, read_usage, usage_path
 
@@ -144,6 +145,7 @@ class Supervisor:
         worktree=None,
         usage_file: Path | None = None,
         git_run=subprocess.run,
+        trust=None,
     ):
         self.root = root
         self.config = config
@@ -158,6 +160,7 @@ class Supervisor:
         self.worktree = worktree or worktrees.worktree_for
         self.usage_file = usage_file or usage_path(os.environ)
         self.git_run = git_run
+        self.trust = trust or (lambda path: trust_folder(path, os.environ))
         self.agents: list[AgentRecord] = []
         self.paused: list[dict] = []
         self.workspace: str | None = None
@@ -341,6 +344,13 @@ class Supervisor:
 
     def _start(self, action: Action, snapshot: Snapshot) -> None:
         cwd = self.worktree(self.root, action.branch, action.detach) if action.branch else self.root
+        if action.branch:
+            # Every worktree is a new git root to Claude Code, which would stop the agent at
+            # its folder-trust dialog. The run trusts only the worktree it just made.
+            try:
+                self.trust(cwd)
+            except TrustError as exc:
+                self._log(f"could not pre-trust {cwd}: {exc}")
         pane = self._open_tab(cwd, f"{action.kind} #{action.number}")
         record = AgentRecord(
             pane=pane,

@@ -37,13 +37,15 @@ def make(root, tmp_path, github, herdr=None, clock=None, fresh=True, dry_run=Fal
     usage_file = tmp_path / "usage.json"
     if fresh:
         write_usage(usage_file, clock())
-    out = []
+    out, trusted = [], []
     supervisor = Supervisor(
         root, load_config(root), github, herdr or FakeHerdr(),
         until=until or START + timedelta(hours=10), cap=None, dry_run=dry_run,
         clock=clock, sleep=clock.sleep, out=out.append,
         worktree=FakeWorktree(tmp_path / "wt"), usage_file=usage_file, git_run=FakeGitRun(),
+        trust=lambda path: trusted.append(path),
     )  # fmt: skip
+    supervisor.trusted = trusted
     supervisor.log = out
     return supervisor
 
@@ -587,3 +589,11 @@ def test_unit_marked_stuck_is_not_restarted_in_the_same_tick(root, tmp_path):
     supervisor.tick()
     assert len(github.comments) == 1
     assert [label for _, _, label in herdr.tabs] == ["implement #7"]
+
+
+def test_start_pretrusts_its_worktree_only(root, tmp_path):
+    # Claude Code asks to trust every new git worktree; the run trusts the ones it made.
+    github = FakeGitHub([ready(7, "a/"), issue(3, labels=["crew:rough"], owns=["z/"])])
+    supervisor = make(root, tmp_path, github)
+    supervisor.tick()
+    assert supervisor.trusted == [tmp_path / "wt" / "unit-7-unit-7"]  # not the root (refine)

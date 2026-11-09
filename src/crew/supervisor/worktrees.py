@@ -1,7 +1,7 @@
 """Worktrees for the run's agents, under ``<root>/.crew/worktrees/``.
 
-Inside the project, so Claude Code's trust in the project folder covers them; the folder
-holds a ``.gitignore`` of ``*`` so the main checkout never sees them.
+Inside the project; the folder holds a ``.gitignore`` of ``*`` so the main checkout never
+sees them. Each is its own git root to Claude Code, so the run trusts it (``trust.py``).
 """
 
 import re

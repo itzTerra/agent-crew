@@ -193,8 +193,10 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
   owner answers on `crew:owner-decision` items, resume units paused by an earlier run, implement
   ready units (the `crew next` order), and refine rough units to keep `refine_ahead` ready;
 - each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode,
-  in a worktree under `.crew/worktrees/` (inside the project, so Claude Code's trust in the
-  project covers it);
+  in a worktree under `.crew/worktrees/`. Claude Code asks to trust every new git root, and each
+  worktree is one, so the run marks the worktree it just made as trusted in Claude Code's config
+  (`~/.claude.json`, or `.claude.json` in `CLAUDE_CONFIG_DIR`), the same flag the dialog's "Yes"
+  sets;
 - an agent that stops before its unit moves on is nudged once; if it stops again, the run
   comments its last output on the issue and sets `crew:owner-stuck`.
 
