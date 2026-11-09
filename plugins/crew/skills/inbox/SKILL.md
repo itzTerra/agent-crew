@@ -9,7 +9,7 @@ Run by the lead, with the owner.
 
 1. Run `crew inbox` (without `--peek`: this is the owner's session, so it marks the inbox as
    seen) in the project root and show its output **unchanged**. Don't summarize,
-   reorder or drop items: the order (do-first, then how much work each item blocks) is the point.
+   reorder or drop items: the order (priority, then how much work each item blocks) is the point.
    - If it fails with `crew: error: …`, show the error and what to do (for example `gh auth
      login`, or `crew init` when the config is missing).
 2. For each item, the ask says what the owner is asked to do:
@@ -25,7 +25,8 @@ Run by the lead, with the owner.
    - record a decision: post the owner's words quoted as theirs, remove `crew:owner-decision`
      and set the label the unit needs next (usually `crew:rough` for refinement).
 4. Show the "Merged without you" list and ask whether any of them should be returned as a new
-   unit. If so, file it as `crew:rough` with a link to the merged PR.
+   unit. If so, file it as `crew:rough` with a link to the merged PR and the merged unit's
+   priority label (`crew:must`, `crew:should` or `crew:later`).
    If `crew inbox` printed `Parked ideas: N`, mention it and offer to go through them with the
    `crew:ideas` skill.
 5. If cycles are listed, propose which dependency to drop, and fix the issue bodies once the

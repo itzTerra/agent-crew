@@ -24,8 +24,9 @@ with a one-line rationale. Use realistic but synthetic content.
 
 - Units labeled `crew:design` are yours: work them through the `crew:implement` skill (worktree,
   branch, PR, review), delivering what this brief asks for.
-- Deliver as a PR labeled `crew:owner-facing`, `crew:owner-decision` and `crew:design`, with the
-  mockups under a folder the unit owns and the PR body saying how to open them.
+- Deliver as a PR labeled `crew:owner-facing`, `crew:owner-decision`, `crew:design` and the
+  priority of the unit it answers, with the mockups under a folder the unit owns and the PR
+  body saying how to open them.
 - **Self-hosted assets only:** no CDNs, web fonts or images loaded from other sites. Fonts and
   icons must be licensed for commercial use and committed to the repo.
 - After the owner chooses, record the chosen system so implementers can follow it.
@@ -79,8 +80,13 @@ with the question, the options and your recommendation, park the unit and move o
 - **Discovered work:** a bug or technical debt that only fixes or tidies existing behavior is
   filed as a new issue labeled `crew:rough`. A find that changes agreed behavior, or a gap that
   blocks the current bet or puts it at risk, is filed as `crew:owner-proposal`. Any other idea
-  that would add scope is filed as a short issue labeled `crew:idea`, with no other crew label.
-  Don't fold any of them into the current unit.
+  that would add scope is filed as a short issue labeled `crew:idea` and `crew:later`, with no
+  other crew label. Don't fold any of them into the current unit.
+- **Priority:** every issue and PR you file carries one priority label (`crew:must`,
+  `crew:should`, `crew:later`). Take it from the requirements it serves (the highest one).
+  Otherwise: with the owner present, suggest one with a one-line reason and let them confirm;
+  without the owner, a work issue takes the priority of the issue you are working on and a
+  parked idea gets `crew:later`. A PR takes the priority of the issue it closes or comes from.
 - **Appetite:** if the work clearly runs past its bet's appetite, stop and raise it as
   `crew:owner-decision` with what is done and what remains.
 - Use the `crew` CLI for everything it covers (`crew check-docs`, `crew check-issue`, `crew next`,

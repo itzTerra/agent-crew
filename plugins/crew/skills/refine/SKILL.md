@@ -12,7 +12,7 @@ Run by the architect (or the lead) in refinement mode.
 Given one unit (`#N`), refine only that unit, and stop when it is done.
 
 Only when asked to refine the backlog, run `crew next --rough`: it lists the rough units in the
-order the workers will need them (do-first, then the ones that block the most other work, then
+order the workers will need them (priority, then the ones that block the most other work, then
 the oldest), leaving out units that wait on the owner. Take them from the top. Refine a few
 ahead, not the whole backlog.
 

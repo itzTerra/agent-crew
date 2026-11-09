@@ -57,6 +57,8 @@ left with another unit's body. The body:
 - Manual checklist: one checkbox per scenario step from the delta;
 - Review rounds: empty for now.
 
+Label the PR with the unit's priority label (`crew:must`, `crew:should` or `crew:later`).
+
 Before asking for review, squash your own fixups per the project's `merge_rules` and push with
 `git push --force-with-lease`. Don't wait for the owner's go-ahead for this.
 
@@ -76,6 +78,6 @@ again with `crew labels set-state N in-review`. Do this after owner feedback too
 `crew:owner-accept`, so the PR never carries both.
 
 A comment that asks for something for later, or outside the unit, is not fixed in the PR: file
-it as a new issue labeled only `crew:idea` that links the PR (unless the lead already filed one
-and gave its URL), and reply with the issue's full URL. If nothing else needs changing, say so
+it as a new issue labeled only `crew:idea` and `crew:later` (unless the owner gave another
+priority) that links the PR (unless the lead already filed one and gave its URL), and reply with the issue's full URL. If nothing else needs changing, say so
 in the reply and move the PR on as above.

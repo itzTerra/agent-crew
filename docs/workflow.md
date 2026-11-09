@@ -22,7 +22,7 @@ back later to work that already passed review.
 
 | Role | Model | Does |
 |---|---|---|
-| **Lead** | Opus | Shows the inbox, runs the kickoff and the pitch challenge, writes shaped pitches, parks ideas, relays owner feedback, marks do-first units, proposes retrospectives |
+| **Lead** | Opus | Shows the inbox, runs the kickoff and the pitch challenge, writes shaped pitches, parks ideas, relays owner feedback, sets priorities, proposes retrospectives |
 | **Architect** | Opus | Writes decision documents and ADRs, splits bets into units, refines rough units to ready |
 | **Designer** | Sonnet | The design system and flow and screen alternatives, as clickable mockups |
 | **Implementer** | Sonnet | One unit end to end: branch, tests, living spec update, pull request |
@@ -36,7 +36,7 @@ Refinement is not a separate role: the architect or the lead does it in refineme
 2. The lead rebuilds its picture from GitHub and shows the **inbox** (`crew inbox`):
    - only items waiting on the owner, each with what is asked (accept, decide, unstick, consider
      a proposal) and a link;
-   - ordered by do-first, then by how many open units each item blocks, directly or indirectly;
+   - ordered by priority, then by how many open units each item blocks, directly or indirectly;
    - followed by the internal work merged without the owner since their last session, so they
      can return any of it as a new unit.
 3. The owner acts on each item on GitHub (comment, approve) or tells the lead, who posts the
@@ -55,10 +55,10 @@ parked idea, to be pitched later.
 challenge by the lead: fit with decisions and requirements, worth, better alternatives
 (including not building it), and what it would delay or break. What survives becomes a **shaped
 pitch** with five sections: Problem, Appetite (a share of the weekly usage limit), Solution
-(rough), Rabbit holes, No-gos.
+(rough), Rabbit holes, No-gos, plus its Priority.
 
 **Parked ideas**: an idea the owner wants recorded but not challenged yet is filed as an issue
-labeled `crew:idea`, from a session with the lead, an owner comment on a PR asking for
+labeled `crew:idea` and a priority, from a session with the lead, an owner comment on a PR asking for
 something for later, or an agent's discovered work. A parked idea is not a bet, not work and
 not waiting on the owner; `crew inbox` shows only how many there are. When the owner goes
 through them, the lead pitches the one they pick. A pitch PR from an idea says `From idea #N`
@@ -97,7 +97,7 @@ their size. Questions only the owner can answer go to the inbox before a worker 
 **Safety valve**: an implementer who finds an unsettled question mid-unit sends it back instead
 of guessing.
 
-**Pick order** (`crew next`): do-first units, then the units that block the most others, then the
+**Pick order** (`crew next`): priority, then the units that block the most others, then the
 oldest. A unit is eligible only when every dependency is closed, it is not in a dependency cycle,
 and it waits on nothing from the owner. Two units run at once only if their owned paths don't
 overlap. The number of agents at once is the work-in-progress limit.
@@ -106,6 +106,16 @@ overlap. The number of agents at once is the work-in-progress limit.
 units. A find that changes agreed behavior, or a gap that blocks the current bet or puts it at
 risk, is filed as a proposal and goes through the pitch challenge. Any other idea that would add
 scope is filed as a parked idea.
+
+**Priority**: every issue and PR carries one of `crew:must`, `crew:should`, `crew:later`, the
+same scale as the requirements. It comes from the requirements the item serves (the highest
+one). Otherwise, with the owner present, the lead suggests one with a one-line reason and the
+owner confirms it; without the owner, a work issue takes the priority of the issue the agent was
+working on and a parked idea gets `crew:later`. A PR takes the priority of the issue it closes
+or comes from. At kickoff, epics in the MVP cut are `crew:must` and the rest `crew:later`. An
+item with no priority counts as `crew:should`. For ordering, an item counts at least as high as
+any open unit that depends on it, directly or indirectly, so a `crew:later` unit blocking
+`crew:must` work is not starved; this effective priority is computed, never written to labels.
 
 ## Labels
 
@@ -121,7 +131,9 @@ scope is filed as a parked idea.
 | `crew:owner-stuck` | Failed review three times; needs the owner |
 | `crew:owner-proposal` | A proposal for the owner's pitch challenge |
 | `crew:idea` | A parked idea: not a bet, not work, not waiting on the owner |
-| `crew:do-first` | The owner wants it before anything else |
+| `crew:must` | Needed for the current cut (MVP or the bet it serves) |
+| `crew:should` | Wanted, but the cut works without it |
+| `crew:later` | A nice-to-have or a later idea |
 | `crew:owner-facing` | Needs owner acceptance before merging |
 | `crew:internal` | Merges after review and CI without the owner |
 | `crew:design` | Design work: the designer builds it, not the implementer |
@@ -237,7 +249,7 @@ project settings (`max_agents`). Every couple of minutes it reads GitHub and:
 - starts agents, finishing work before starting new work: merges, fixes, reviews (Opus for
   owner-facing units, Sonnet for internal ones), follow-ups on owner answers, units an earlier run
   paused, then new ready units in pick order (units labeled `crew:design` go to the designer,
-  the rest to the implementer) (*do first* units ahead of the rest, then highest
+  the rest to the implementer) (highest priority first, then highest
   blocker first). It keeps a few units refined ahead of the workers (just-in-time refinement);
 - runs each agent in its own terminal tab and worktree, under the agents' GitHub login, in Claude
   Code's auto mode;

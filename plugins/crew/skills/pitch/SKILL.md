@@ -44,12 +44,16 @@ free number:
 ## No-gos
 ```
 
+For `## Priority`, take the idea's priority when the pitch started from a `crew:idea` issue;
+otherwise the highest priority of the requirements it serves; otherwise suggest one with a
+one-line reason and let the owner confirm.
+
 Run `crew check-docs`; it must report no errors for the pitch.
 
 ## 3. Propose the bet
 
-Commit the pitch on a branch `pitch/NNNN`, push it and open a PR labeled `crew:owner-accept`
-and `crew:owner-facing`. **Merging that PR is the bet.** If the owner declines, close the PR
+Commit the pitch on a branch `pitch/NNNN`, push it and open a PR labeled `crew:owner-accept`,
+`crew:owner-facing` and the pitch's priority (`crew:must`, `crew:should` or `crew:later`). **Merging that PR is the bet.** If the owner declines, close the PR
 with their reason quoted.
 
 When the pitch started from a `crew:idea` issue, the PR body says `From idea #N`, never a
@@ -59,4 +63,5 @@ PR. If the owner declines the bet as "not now", reopen the idea; see the `crew:i
 ## 4. After the bet
 
 Start the architect to split the pitch into units: one issue per unit from the unit template,
-labeled `crew:rough`, with owned paths and dependencies. Shared foundations come first.
+labeled `crew:rough` and the pitch's priority (or higher if a unit's requirements say so), with
+owned paths and dependencies. Shared foundations come first.

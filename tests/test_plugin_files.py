@@ -191,3 +191,24 @@ def test_kickoff_parks_mvp_epics_and_inbox_mentions_ideas():
     assert "Parked ideas" in skill_text("inbox")
     lead = (PLUGIN / "agents" / "lead.md").read_text(encoding="utf-8")
     assert "crew:ideas" in lead
+
+
+PRIORITY_RULE_PHRASES = ("crew:must", "crew:should", "crew:later", "the issue you are working on")
+
+
+@pytest.mark.parametrize("name", AGENTS)
+def test_agent_brief_sets_priority(name):
+    text = (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")
+    rule = text[text.index("**Priority:**") :].split("\n- ")[0]
+    for phrase in PRIORITY_RULE_PHRASES:
+        assert phrase in rule, f"{name}.md priority rule lacks {phrase!r}"
+
+
+def test_no_do_first_left():
+    for path in [*PLUGIN.rglob("*.md"), PLUGIN.parent.parent / "docs" / "workflow.md"]:
+        assert "do-first" not in path.read_text(encoding="utf-8"), path
+
+
+@pytest.mark.parametrize("name", ["kickoff", "ideas", "pitch", "relay", "implement", "inbox"])
+def test_filing_skills_name_a_priority(name):
+    assert "crew:must" in skill_text(name) or "crew:later" in skill_text(name)

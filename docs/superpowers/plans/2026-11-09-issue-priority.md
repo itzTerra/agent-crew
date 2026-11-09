@@ -235,7 +235,7 @@ git commit -m "feat(pitches): record the pitch's priority"
 - Modify: `docs/workflow.md`; `README.md` only if it mentions do-first or the order (currently it does not)
 - Test: `tests/test_plugin_files.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 PRIORITY_RULE_PHRASES = ("crew:must", "crew:should", "crew:later", "the issue you are working on")
@@ -259,9 +259,9 @@ def test_filing_skills_name_a_priority(name):
     assert "crew:must" in skill_text(name) or "crew:later" in skill_text(name)
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_plugin_files.py -q` — Expected: FAIL.
+- [x] **Step 2: Run to verify they fail** — `uv run pytest tests/test_plugin_files.py -q` — Expected: FAIL.
 
-- [ ] **Step 3: Edit the texts**
+- [x] **Step 3: Edit the texts**
 
 - Every agent brief, in `## Rules` right after **Discovered work**, a bullet starting `**Priority:**` with the spec's shared rule (the quoted block under "Where issues and PRs are filed"). In **Discovered work**, "with no other crew label" → "with `crew:later` and no other crew label".
 - `lead.md`: line 42 → "When the owner changes how important something is, relabel it (`crew:must`, `crew:should`, `crew:later`). When the owner asks what to do next, suggest the highest-priority work first." Retrospective proposal (line 61) gets `crew:should`.
@@ -274,9 +274,9 @@ def test_filing_skills_name_a_priority(name):
 - `refine`: order wording "priority, then the ones that block the most other work, then …".
 - `docs/workflow.md`: lead role line (line 25: "marks do-first units" → "sets priorities"), inbox order (line 39), pick order (line 100), label table (line 124: drop do-first, add the three labels), the parked-ideas wording, and a short "Priority" paragraph with the shared rule and the effective-priority rule.
 
-- [ ] **Step 4: Run the suite** — `uv run pytest -q` — Expected: pass (including body-length limits).
+- [x] **Step 4: Run the suite** — `uv run pytest -q` — Expected: pass (including body-length limits).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugins docs/workflow.md tests/test_plugin_files.py docs/superpowers/plans/2026-11-09-issue-priority.md

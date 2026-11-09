@@ -43,13 +43,15 @@ Run `crew check-docs` until it reports no errors; `XREF-UNCITED` warnings are ex
 there are no living specs yet. Then commit it on a branch and open a PR labeled
 `crew:owner-accept` and `crew:owner-facing`.
 
-Then file one `crew:idea` issue per MVP epic, each naming its epic and linking the baseline PR;
-they are promoted to pitches later with the `crew:ideas` skill. If the MVP cut changes in the
-baseline PR's review, adjust these ideas while relaying that feedback.
+Label the baseline PR `crew:must`. Then file one `crew:idea` issue per epic, each naming its
+epic and linking the baseline PR: an epic in the MVP cut gets `crew:must`, an epic outside it
+`crew:later`. They are promoted to pitches later with the `crew:ideas` skill. If the MVP cut
+changes in the baseline PR's review, adjust and relabel these ideas while relaying that feedback.
 
 ## 3. File the first decisions
 
-File the first owner decisions as issues labeled `crew:rough` and `crew:owner-facing`, each for
+File the first owner decisions as issues labeled `crew:rough`, `crew:owner-facing` and
+`crew:must` (they block the MVP work), each for
 the architect to prepare as a decision document. They reach the owner's inbox only when the
 decision document's PR exists and is labeled `crew:owner-decision`, so the owner is never asked
 to decide before the options are written:
