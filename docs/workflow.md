@@ -94,8 +94,9 @@ and it waits on nothing from the owner. Two units run at once only if their owne
 overlap. The number of agents at once is the work-in-progress limit.
 
 **Discovered work**: bugs and debt that only fix or tidy existing behavior are filed as rough
-units. Anything that adds scope or changes agreed behavior is filed as a proposal and goes
-through the pitch challenge.
+units. A find that changes agreed behavior, or a gap that blocks the current bet or puts it at
+risk, is filed as a proposal and goes through the pitch challenge. Any other idea that would add
+scope is filed as a parked idea.
 
 ## Labels
 
@@ -110,6 +111,7 @@ through the pitch challenge.
 | `crew:owner-decision` | Waiting for the owner to decide |
 | `crew:owner-stuck` | Failed review three times; needs the owner |
 | `crew:owner-proposal` | A proposal for the owner's pitch challenge |
+| `crew:idea` | A parked idea: not a bet, not work, not waiting on the owner |
 | `crew:do-first` | The owner wants it before anything else |
 | `crew:owner-facing` | Needs owner acceptance before merging |
 | `crew:internal` | Merges after review and CI without the owner |

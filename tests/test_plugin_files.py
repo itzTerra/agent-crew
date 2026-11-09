@@ -52,8 +52,23 @@ def test_agent_brief_covers_shared_rules(name):
         "agent_login",
         "--peek",
         "full URL",
+        "crew:idea",
     ):
         assert phrase in text, f"{name}.md lacks {phrase!r}"
+
+
+@pytest.mark.parametrize("name", AGENTS)
+def test_discovered_work_parks_ideas(name):
+    text = (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")
+    rule = text[text.index("**Discovered work:**") :].split("\n- ")[0]
+    for phrase in (
+        "crew:rough",
+        "crew:owner-proposal",
+        "crew:idea",
+        "agreed behavior",
+        "current bet",
+    ):
+        assert phrase in rule, f"{name}.md discovered-work rule lacks {phrase!r}"
 
 
 SKILLS = [

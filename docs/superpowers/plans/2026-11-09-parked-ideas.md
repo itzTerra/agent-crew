@@ -158,7 +158,7 @@ git commit -m "feat(inbox): show the number of parked ideas"
 - Modify: `plugins/crew/agents/{lead,architect,designer,implementer,reviewer}.md` (the "**Discovered work:**" bullet), `docs/workflow.md` ("Discovered work" paragraph and the Labels table)
 - Test: `tests/test_plugin_files.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add `"crew:idea"` to the phrases in `test_agent_brief_covers_shared_rules`, and:
 
@@ -171,12 +171,12 @@ def test_discovered_work_parks_ideas(name):
         assert phrase in rule, f"{name}.md discovered-work rule lacks {phrase!r}"
 ```
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `uv run pytest tests/test_plugin_files.py -k "discovered or shared_rules" -v`
 Expected: FAIL for all five agents.
 
-- [ ] **Step 3: Rewrite the bullet identically in all five briefs:**
+- [x] **Step 3: Rewrite the bullet identically in all five briefs:**
 
 ```
 - **Discovered work:** a bug or technical debt that only fixes or tidies existing behavior is
@@ -188,12 +188,12 @@ Expected: FAIL for all five agents.
 
 In `docs/workflow.md`, rewrite the "Discovered work" paragraph to the same three-way rule, and add a table row after `crew:owner-proposal`: `` | `crew:idea` | A parked idea: not a bet, not work, not waiting on the owner | ``.
 
-- [ ] **Step 4: Run the whole suite**
+- [x] **Step 4: Run the whole suite**
 
 Run: `uv run pytest -q`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugins/crew/agents docs/workflow.md tests/test_plugin_files.py docs/superpowers/plans/2026-11-09-parked-ideas.md
