@@ -10,18 +10,41 @@ The plugin gives a project:
 - **role agents:** `crew:lead`, `crew:architect`, `crew:designer`, `crew:implementer`,
   `crew:reviewer`;
 - **skills:** `crew:inbox`, `crew:kickoff`, `crew:pitch`, `crew:refine`, `crew:relay`,
-  `crew:implement`, `crew:review`, `crew:merge`;
+  `crew:implement`, `crew:review`, `crew:merge`, `crew:run`, `crew:budget`;
 - **document standards** for requirements, living specs, ADRs and shaped pitches, with a CI
   format check (`crew check-docs`);
 - a **label set**, an issue template for units, and a PR template;
 - an **owner inbox** that lists only what waits on you, most blocking first.
 
-How the workflow fits together: [`docs/workflow.md`](docs/workflow.md).
+- **automated runs** (`crew run`) that keep a few agents busy until an end time and a weekly
+  budget cap.
+
+## How you use it
+
+Once per project: set it up (below), then run the kickoff with the lead (`crew:kickoff`), which
+condenses your existing documents into a requirements baseline.
+
+Then, in about 20 minutes a day:
+
+1. **Start a session with the lead** (`crew agent lead`) and ask for the inbox. It lists only
+   what waits on you, most blocking first: PRs to accept, decisions to make, stuck work,
+   proposals.
+2. **Deal with each item on GitHub:** approve a PR, comment what to change, answer a question.
+   Or tell the lead, and it posts your words for you.
+3. **Pitch ideas** to the lead. It challenges them with you, and the architect turns the ones
+   you accept into small units of work.
+4. **Start a run** when you leave (`crew:run`, for example until 07:00). Agents refine, build,
+   review and merge internal work, turn your comments into fixes, and stop at the end time or
+   the budget cap. Anything that needs you waits in the inbox for next time.
+
+You decide what gets built, accept user-visible work and make the costly-to-reverse decisions;
+the agents do the rest. The full design: [`docs/workflow.md`](docs/workflow.md).
 
 ## Install
 
 Requirements: Python 3.12+, [uv](https://docs.astral.sh/uv/), the
-[GitHub CLI](https://cli.github.com/) (`gh auth login` done), and Claude Code.
+[GitHub CLI](https://cli.github.com/) (`gh auth login` done), and Claude Code; for automated runs,
+also [herdr](https://herdr.dev).
 
 ```sh
 git clone https://github.com/itzTerra/agent-crew <path-to-agent-crew>
