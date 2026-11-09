@@ -7,6 +7,7 @@ from crew.graph import (
     next_ready,
     owns_overlap,
     ready_report,
+    rough_order,
 )
 
 
@@ -136,3 +137,17 @@ def test_ready_report_reasons():
         Skipped(9, "WIP limit reached (2 of 2 agents)"),
     ]
     assert next_ready(units, running=[1], max_agents=2, busy=[2]) == picks
+
+
+def test_mislabeled_idea_is_never_picked_or_refined():
+    units = build_units(
+        [
+            issue(1, labels=["crew:idea", "crew:ready"], owns=["a/"]),
+            issue(2, labels=["crew:idea", "crew:rough"], owns=["b/"]),
+            issue(3, labels=["crew:rough"], owns=["c/"]),
+        ]
+    )
+    picks, skipped = ready_report(units, running=[], max_agents=3)
+    assert picks == []
+    assert skipped == [Skipped(1, "is a parked idea (crew:idea)")]
+    assert rough_order(units) == [3]

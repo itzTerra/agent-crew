@@ -6,7 +6,7 @@ import pytest
 
 from crew.cli import main
 from crew.github import GitHub
-from crew.labels import FLOW, LabelProblem, label_problems, set_state
+from crew.labels import FLOW, IDEA, LABELS, LabelProblem, label_problems, set_state
 from tests.test_github import FakeGh
 from tests.test_graph import issue
 from tests.test_inbox import pr
@@ -219,3 +219,26 @@ def test_set_state_cli_reports_unit_pr_problem(monkeypatch, capsys):
     monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
     assert main(["labels", "set-state", "4", "in-review", "--root", str(PROJECT)]) != 0
     assert "put `Closes #4` in its body" in capsys.readouterr().err
+
+
+def test_idea_label_exists():
+    assert IDEA == "crew:idea"
+    assert IDEA in {label.name for label in LABELS}
+    assert IDEA not in FLOW
+
+
+def test_label_problems_idea_with_work_or_proposal_label():
+    problems = label_problems(
+        open_issues=[
+            issue(3, labels=["crew:idea"]),
+            issue(4, labels=["crew:idea", "crew:rough"]),
+            issue(6, labels=["crew:idea", "crew:owner-proposal"]),
+        ],
+        closed_issues=[],
+        open_prs=[],
+        merged_prs=[],
+    )
+    assert problems == [
+        LabelProblem(4, "parked idea also has crew:rough", ()),
+        LabelProblem(6, "parked idea also has crew:owner-proposal", ()),
+    ]

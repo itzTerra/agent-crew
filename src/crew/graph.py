@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass
 
+from crew.labels import IDEA
 from crew.units import parse_unit_body
 
 READY = "crew:ready"
@@ -168,11 +169,15 @@ def priority_key(do_first: bool, blocks: int, created_at: str, number: int) -> t
 def rough_order(units: dict[int, Unit]) -> list[int]:
     """Rough units in the order to refine them, the same order workers will pick them.
 
-    Units waiting on the owner are left out. Open dependencies don't hold a unit back:
-    refining ahead of the workers is the point.
+    Units waiting on the owner and parked ideas are left out. Open dependencies don't hold a
+    unit back: refining ahead of the workers is the point.
     """
     counts = dependents_count(units)
-    rough = [u for u in units.values() if ROUGH in u.labels and not u.labels & WAITING_ON_OWNER]
+    rough = [
+        u
+        for u in units.values()
+        if ROUGH in u.labels and IDEA not in u.labels and not u.labels & WAITING_ON_OWNER
+    ]
     rough.sort(
         key=lambda u: priority_key(DO_FIRST in u.labels, counts[u.number], u.created_at, u.number)
     )
@@ -191,10 +196,10 @@ def ready_report(
 ) -> tuple[list[int], list[Skipped]]:
     """The units to start now, in pick order, and why every other ready unit is left out.
 
-    A unit is eligible when it is labeled ready, waits on nothing from the owner, every
-    dependency is closed, and it is not in a dependency cycle. Units whose owned paths
-    overlap a running, busy or already chosen unit are skipped. ``running`` units use
-    agent slots; ``busy`` units (in review or waiting on the owner) only hold their paths.
+    A unit is eligible when it is labeled ready, is not a parked idea, waits on nothing from
+    the owner, every dependency is closed, and it is not in a dependency cycle. Units whose
+    owned paths overlap a running, busy or already chosen unit are skipped. ``running`` units
+    use agent slots; ``busy`` units (in review or waiting on the owner) only hold their paths.
 
     Returns:
         ``(picks, skipped)``: each ready unit not picked gets one ``Skipped`` with the
@@ -242,6 +247,8 @@ def _ineligible_reason(
     if unit.number in busy:
         label = next((name for name in BUSY_ORDER if name in unit.labels), None)
         return f"has an open PR ({label})" if label else "has an open PR"
+    if IDEA in unit.labels:
+        return f"is a parked idea ({IDEA})"
     if waiting := sorted(unit.labels & WAITING_ON_OWNER):
         return f"waits on the owner ({waiting[0]})"
     if unit.number in in_cycle:

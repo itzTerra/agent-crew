@@ -39,7 +39,7 @@
 **Interfaces:**
 - Produces: `crew.labels.IDEA = "crew:idea"`; `label_problems` also returns `LabelProblem(n, "parked idea also has <labels>", ())` for open issues with `crew:idea` plus any flow label or `crew:owner-proposal` (labels listed in `FLOW` order, then `crew:owner-proposal`, comma-separated).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/test_labels.py`:
 
@@ -74,21 +74,21 @@ def test_parked_idea_is_never_picked():
     assert result.actions == []
 ```
 
-- [ ] **Step 2: Run them and see the label tests fail**
+- [x] **Step 2: Run them and see the label tests fail**
 
 Run: `uv run pytest tests/test_labels.py tests/supervisor/test_planner.py -k "idea" -v`
 Expected: the two label tests FAIL (ImportError / missing problem); the planner test PASSES already (it pins existing behavior).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/crew/labels.py`: add `IDEA = "crew:idea"`; add `Label(IDEA, "ededed", "A parked idea: not a bet, not work, not waiting on the owner.")` to `LABELS` under a new `# Parked.` comment after the owner asks. In `label_problems`, after the "more than one state label" pass, add a pass over open issues by number for the idea conflict; update the docstring's "In this order" sentence to include it.
 
-- [ ] **Step 4: Run the whole suite**
+- [x] **Step 4: Run the whole suite**
 
 Run: `uv run pytest -q`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/labels.py tests/test_labels.py tests/supervisor/test_planner.py docs/superpowers/plans/2026-11-09-parked-ideas.md

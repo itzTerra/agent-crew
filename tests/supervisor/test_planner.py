@@ -229,6 +229,12 @@ def test_refine_ahead_keeps_one_refiner():
     assert kinds(busy) == [("implement", 3)]
 
 
+def test_parked_idea_is_never_picked():
+    issues = [issue(1, labels=["crew:idea"], owns=["a/"])]
+    result = make_plan(snap(issues), free_slots=3)
+    assert result.actions == []
+
+
 def test_live_agent_target_skipped():
     issues = [issue(5, labels=["crew:in-review"], owns=["a/"])]
     prs = [pr(9, 5, ["crew:in-review"])]

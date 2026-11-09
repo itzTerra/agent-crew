@@ -19,6 +19,10 @@ class Label:
     description: str
 
 
+# A parked idea: never carries a flow label and never waits on the owner.
+IDEA = "crew:idea"
+OWNER_PROPOSAL = "crew:owner-proposal"
+
 LABELS: list[Label] = [
     # Work state.
     Label("crew:rough", "d4c5f9", "Not yet refined to the definition of ready."),
@@ -31,6 +35,8 @@ LABELS: list[Label] = [
     Label("crew:owner-decision", "b60205", "Waiting for the owner to decide a question."),
     Label("crew:owner-stuck", "b60205", "Failed review three times and needs the owner."),
     Label("crew:owner-proposal", "b60205", "A proposal waiting for the owner's pitch challenge."),
+    # Parked.
+    Label(IDEA, "ededed", "A parked idea: not a bet, not work, not waiting on the owner."),
     # Priority and kind.
     Label("crew:do-first", "5319e7", "The owner wants this before anything else."),
     Label("crew:owner-facing", "c5def5", "Needs the owner's acceptance before merging."),
@@ -161,7 +167,8 @@ def label_problems(
     """Flow labels that disagree with an item's state or with each other.
 
     In this order, each by number: closed issues and merged PRs still carrying flow labels
-    (fixable by removing them); open items with more than one flow label; open PRs whose
+    (fixable by removing them); open items with more than one flow label; open issues with
+    ``crew:idea`` and a flow label or ``crew:owner-proposal``; open PRs whose
     flow label differs from their linked open issue's; open PRs on a ``unit/<n>-…`` branch
     that don't close issue ``n``.
     """
@@ -177,6 +184,13 @@ def label_problems(
         if len(flow) > 1:
             message = f"has more than one state label: {', '.join(flow)}"
             problems.append(LabelProblem(item["number"], message, ()))
+    for item in sorted(open_issues, key=lambda i: i["number"]):
+        names = _names(item)
+        if IDEA in names:
+            clash = _flow_of(names) + ([OWNER_PROPOSAL] if OWNER_PROPOSAL in names else [])
+            if clash:
+                message = f"parked idea also has {', '.join(clash)}"
+                problems.append(LabelProblem(item["number"], message, ()))
     issue_flow = {item["number"]: _flow_of(_names(item)) for item in open_issues}
     for pr in sorted(open_prs, key=lambda i: i["number"]):
         pr_flow = _flow_of(_names(pr))
