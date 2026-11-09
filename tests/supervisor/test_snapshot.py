@@ -146,3 +146,27 @@ def test_take_snapshot_calls():
 def test_marked_comments_are_not_owner_activity():
     marked = comment(OWNER, "2026-11-09T19:00:00Z", f"crew run: stuck\n\n{MARKER}")
     assert activity(comments=[marked], commits=[commit("2026-11-09T09:00:00Z")]).kind == "none"
+
+
+def test_early_owner_approval_survives_the_agent_review():
+    # M10: the owner approves while the PR is still in agent review.
+    result = activity(
+        comments=[comment(AGENT, "2026-11-09T12:00:00Z", "Review round 1: pass")],
+        reviews=[review(OWNER, "2026-11-09T11:00:00Z", "APPROVED")],
+        commits=[commit("2026-11-09T10:00:00Z")],
+    )
+    assert result == OwnerActivity("approved", "2026-11-09T11:00:00Z")
+
+
+def test_new_commits_or_later_feedback_void_an_approval():
+    voided = activity(
+        reviews=[review(OWNER, "2026-11-09T11:00:00Z", "APPROVED")],
+        commits=[commit("2026-11-09T12:00:00Z")],
+    )
+    assert voided.kind == "none"
+    superseded = activity(
+        comments=[comment(OWNER, "2026-11-09T12:00:00Z"), comment(AGENT, "2026-11-09T13:00:00Z")],
+        reviews=[review(OWNER, "2026-11-09T11:00:00Z", "APPROVED")],
+        commits=[commit("2026-11-09T10:00:00Z")],
+    )
+    assert superseded.kind == "none"

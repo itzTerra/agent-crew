@@ -61,8 +61,10 @@ def owner_activity(
     """The owner's latest action that no agent comment, review or commit has answered yet.
 
     The answer mark is the latest of the comments and reviews by ``agent_login`` and the
-    commits. The owner's comments and reviews after it are unanswered: if the latest of them
-    is an approving review the result is ``approved``, otherwise ``feedback``. Logins compare
+    commits; the owner's comments and non-approving reviews after it are unanswered feedback.
+    An approval stands until a later commit or a later owner comment or review; an agent's
+    review doesn't void it. The later of the standing approval and the latest unanswered
+    feedback wins. Comments carrying ``MARKER`` are ignored. Logins compare
     case-insensitively. When the run started plays no part.
     """
     owner, agent = owner_login.casefold(), agent_login.casefold()
@@ -76,19 +78,31 @@ def owner_activity(
         for r in reviews
         if r.get("state") != "PENDING"
     ]
-    marks = [at for at, item, _ in events if at and _login(item) == agent]
-    marks += [at for c in commits if (at := _when(c.get("committedDate")))]
-    mark = max(marks, default=None)
-    unanswered = [
-        (at, item, state)
-        for at, item, state in events
-        if at and _login(item) == owner and (mark is None or at > mark)
+    commit_times = [at for c in commits if (at := _when(c.get("committedDate")))]
+    agent_times = [at for at, item, _ in events if at and _login(item) == agent]
+    mark = max([*agent_times, *commit_times], default=None)
+    owner_events = [(at, item, state) for at, item, state in events if at and _login(item) == owner]
+    feedback = [e for e in owner_events if e[2] != "APPROVED"]
+    unanswered = [e for e in feedback if mark is None or e[0] > mark]
+    # An approval stands until new commits arrive or the owner says something after it;
+    # an agent's review or reply doesn't answer it.
+    last_commit = max(commit_times, default=None)
+    approvals = [
+        e
+        for e in owner_events
+        if e[2] == "APPROVED"
+        and (last_commit is None or e[0] > last_commit)
+        and not any(f[0] > e[0] for f in feedback)
     ]
-    if not unanswered:
-        return OwnerActivity("none", "")
-    _, latest, state = max(unanswered, key=lambda event: event[0])
-    stamp = latest.get("submittedAt") if state is not None else latest.get("createdAt")
-    return OwnerActivity("approved" if state == "APPROVED" else "feedback", stamp or "")
+    latest_feedback = max(unanswered, key=lambda e: e[0], default=None)
+    latest_approval = max(approvals, key=lambda e: e[0], default=None)
+    if latest_approval and (latest_feedback is None or latest_approval[0] > latest_feedback[0]):
+        return OwnerActivity("approved", latest_approval[1].get("submittedAt") or "")
+    if latest_feedback:
+        _, item, state = latest_feedback
+        stamp = item.get("submittedAt") if state is not None else item.get("createdAt")
+        return OwnerActivity("feedback", stamp or "")
+    return OwnerActivity("none", "")
 
 
 def _check_state(check: dict) -> tuple[str, str]:
