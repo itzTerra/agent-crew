@@ -101,7 +101,7 @@ def test_label_set():
         "crew:rough", "crew:ready", "crew:in-progress", "crew:in-review",
         "crew:changes-requested", "crew:owner-accept", "crew:owner-decision",
         "crew:owner-stuck", "crew:owner-proposal", "crew:do-first", "crew:owner-facing",
-        "crew:internal",
+        "crew:internal", "crew:design",
     ]  # fmt: skip
     for label in LABELS:
         assert len(label.color) == 6 and label.description.endswith(".")

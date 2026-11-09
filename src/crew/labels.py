@@ -34,6 +34,7 @@ LABELS: list[Label] = [
     Label("crew:do-first", "5319e7", "The owner wants this before anything else."),
     Label("crew:owner-facing", "c5def5", "Needs the owner's acceptance before merging."),
     Label("crew:internal", "bfdadc", "Merges after review and CI without the owner."),
+    Label("crew:design", "f9d0c4", "Design work: the designer builds it, not the implementer."),
 ]
 
 # Flow labels: at most one on an issue or PR at a time. The owner asks

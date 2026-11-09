@@ -113,6 +113,7 @@ through the pitch challenge.
 | `crew:do-first` | The owner wants it before anything else |
 | `crew:owner-facing` | Needs owner acceptance before merging |
 | `crew:internal` | Merges after review and CI without the owner |
+| `crew:design` | Design work: the designer builds it, not the implementer |
 
 A unit is done when its issue is closed by a merged PR with `Closes #N`.
 
@@ -222,7 +223,8 @@ project settings (`max_agents`). Every couple of minutes it reads GitHub and:
 - returns a PR whose CI failed to its implementer, naming the failed checks;
 - starts agents, finishing work before starting new work: merges, fixes, reviews (Opus for
   owner-facing units, Sonnet for internal ones), follow-ups on owner answers, units an earlier run
-  paused, then new ready units in pick order (*do first* units ahead of the rest, then highest
+  paused, then new ready units in pick order (units labeled `crew:design` go to the designer,
+  the rest to the implementer) (*do first* units ahead of the rest, then highest
   blocker first). It keeps a few units refined ahead of the workers (just-in-time refinement);
 - runs each agent in its own terminal tab and worktree, under the agents' GitHub login, in Claude
   Code's auto mode;

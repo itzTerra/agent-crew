@@ -12,6 +12,7 @@ from crew.supervisor.snapshot import Snapshot, checks_state, failed_checks, owne
 Kind = Literal["merge", "fix", "review", "followup", "resume", "implement", "refine"]
 DECISION = "crew:owner-decision"
 OWNER_FACING = "crew:owner-facing"
+DESIGN = "crew:design"
 SLUG_MAX = 40
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 # Kinds whose agent holds the unit's issue as running work.
@@ -81,6 +82,11 @@ def _flow(names: set[str]) -> str | None:
     return next((name for name in FLOW if name in names), None)
 
 
+def _worker(*label_sets: set[str]) -> str:
+    """The role that builds a unit: the designer for design work, else the implementer."""
+    return "designer" if any(DESIGN in labels for labels in label_sets) else "implementer"
+
+
 def plan(
     snapshot: Snapshot,
     live: list[Live],
@@ -94,7 +100,8 @@ def plan(
     Order: housekeeping (owner feedback, red CI), then merge, fix, review, followup, resume,
     implement and refine actions, cut at ``free_slots``. Each target gets at most one action;
     targets with a live agent or a label problem are skipped. An action whose estimate exceeds
-    ``minutes_left`` is dropped.
+    ``minutes_left`` is dropped. Units or PRs labeled ``crew:design`` are built (implement,
+    resume, fix) and followed up by the designer instead of the implementer and architect.
     """
     result = Plan()
     occupied = {n for agent in live for n in (agent.number, agent.issue) if n is not None}
@@ -129,9 +136,10 @@ def plan(
         )
         checks = checks_state(pr, config.ci_checks)
         url = pr.get("url", "")
+        worker = _worker(names, unit.labels if unit else set())
         if DECISION in names:
             if activity.kind != "none" and not blocked(number, issue):
-                candidates.append(_followup(number, url))
+                candidates.append(_followup(number, url, worker == "designer"))
                 handled.add(number)
             continue
         if activity.kind == "approved" and flow == "crew:changes-requested":
@@ -166,7 +174,7 @@ def plan(
                     f"Use crew:implement on issue #{issue if issue is not None else number}: "
                     f"changes are requested on PR #{number} ({url})."
                 )
-                candidates.append(Action("fix", number, issue, "implementer", None, prompt, branch))
+                candidates.append(Action("fix", number, issue, worker, None, prompt, branch))
         elif flow == "crew:in-review":
             if checks == "pending":
                 pending_checks = True
@@ -195,7 +203,8 @@ def plan(
                 f"Use crew:implement on issue #{number}: resume the work pushed on branch "
                 f"{branch} in an earlier run."
             )
-            candidates.append(Action("resume", number, None, "implementer", None, prompt, branch))
+            role = _worker(unit.labels)
+            candidates.append(Action("resume", number, None, role, None, prompt, branch))
 
     running = sorted({agent.issue or agent.number for agent in live if agent.kind in WORKING_KINDS})
     with_pr = {ref["number"] for pr in prs for ref in pr.get("closingIssuesReferences") or []}
@@ -210,9 +219,12 @@ def plan(
         unit = snapshot.units[number]
         if blocked(number, None):
             continue
+        role = _worker(unit.labels)
         prompt = f"Use crew:implement on issue #{number} ({unit.url})."
+        if role == "designer":
+            prompt += " It is design work: deliver the alternatives as mockups per your brief."
         branch = unit_branch(number, unit.title)
-        candidates.append(Action("implement", number, None, "implementer", None, prompt, branch))
+        candidates.append(Action("implement", number, None, role, None, prompt, branch))
 
     ready_left = sum(1 for u in snapshot.units.values() if READY in u.labels) - len(picks)
     refining = any(agent.kind == "refine" for agent in live)
@@ -244,7 +256,14 @@ def plan(
     return result
 
 
-def _followup(number: int, url: str) -> Action:
+def _followup(number: int, url: str, design: bool = False) -> Action:
+    if design:
+        prompt = (
+            f"The owner answered on #{number} ({url}). Continue from their answer: if they chose "
+            "an alternative, record the chosen design per your brief; otherwise revise the "
+            "alternatives."
+        )
+        return Action("followup", number, None, "designer", None, prompt, None)
     prompt = (
         f"The owner answered on #{number} ({url}). Continue from their answer: for a unit, use "
         f"crew:refine on issue #{number} only; for a decision document, write the ADR per your "

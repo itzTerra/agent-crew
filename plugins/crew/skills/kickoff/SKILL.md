@@ -52,6 +52,6 @@ to decide before the options are written:
 
 - the architecture and stack ADRs (languages, frameworks, storage, hosting);
 - the operations and checks setup (CI, Docker, test and lint tools);
-- design-system alternatives (for the designer).
+- design-system alternatives (for the designer; also label it `crew:design`).
 
 Add dependencies between them where one decision needs another first.

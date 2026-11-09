@@ -5,7 +5,9 @@ description: "Implement one ready unit end to end: worktree, branch, tests, livi
 
 # Implement
 
-Run by the implementer on one ready issue `#N`.
+Run by the implementer on one ready issue `#N`, or by the designer on one labeled `crew:design`.
+The designer follows the same steps, but delivers per its brief: alternatives as mockups, and a
+PR that also carries `crew:design` and `crew:owner-decision`.
 
 ## 1. Start
 

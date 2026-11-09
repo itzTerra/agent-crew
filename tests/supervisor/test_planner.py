@@ -269,3 +269,46 @@ def test_approval_after_feedback_returns_to_owner_accept():
     result = make_plan(snap(issues, prs))
     assert result.housekeeping == [Housekeeping(9, "owner-accept", None)]
     assert result.actions == []
+
+
+def test_design_units_go_to_the_designer():
+    issues = [
+        issue(3, labels=["crew:ready"], owns=["a/"]),
+        issue(4, labels=["crew:ready", "crew:design"], owns=["b/"]),
+        issue(5, labels=["crew:in-progress", "crew:design"], owns=["c/"]),
+        issue(6, labels=["crew:changes-requested", "crew:design"], owns=["d/"]),
+    ]
+    prs = [pr(10, 6, ["crew:changes-requested", "crew:design"])]
+    paused = [{"number": 5, "branch": "unit/5-unit-5"}]
+    result = make_plan(snap(issues, prs), paused=paused, free_slots=4)
+    roles = {(a.kind, a.number): a.role for a in result.actions}
+    assert roles == {
+        ("fix", 10): "designer",
+        ("resume", 5): "designer",
+        ("implement", 3): "implementer",
+        ("implement", 4): "designer",
+    }
+    design = next(a for a in result.actions if a.number == 4)
+    assert design.prompt == (
+        "Use crew:implement on issue #4 (https://github.com/example/app/issues/4). It is design "
+        "work: deliver the alternatives as mockups per your brief."
+    )
+    assert design.branch == "unit/4-unit-4"
+
+
+def test_design_label_on_the_unit_alone_routes_the_fix():
+    issues = [issue(6, labels=["crew:changes-requested", "crew:design"], owns=["d/"])]
+    result = make_plan(snap(issues, [pr(10, 6, ["crew:changes-requested"])]))
+    assert [(a.kind, a.role) for a in result.actions] == [("fix", "designer")]
+
+
+def test_followup_on_design_decision_pr_goes_to_the_designer():
+    issues = [issue(5, labels=["crew:owner-accept", "crew:design"], owns=["a/"])]
+    prs = [pr(9, 5, ["crew:owner-accept", "crew:owner-decision"], comments=[owner_comment()])]
+    (action,) = make_plan(snap(issues, prs)).actions
+    assert (action.kind, action.number, action.role) == ("followup", 9, "designer")
+    assert action.prompt == (
+        "The owner answered on #9 (https://github.com/example/app/pull/9). Continue from their "
+        "answer: if they chose an alternative, record the chosen design per your brief; "
+        "otherwise revise the alternatives."
+    )

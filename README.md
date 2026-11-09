@@ -24,18 +24,19 @@ The plugin gives a project:
 Once per project: set it up (below), then run the kickoff with the lead (`crew:kickoff`), which
 condenses your existing documents into a requirements baseline.
 
-Then, in about 20 minutes a day:
+Then, in about 20 minutes a day, start a session with the lead in a terminal (`crew agent lead`).
+Everything after that you ask the lead for; each step names the skill it uses and, where there is
+one, the CLI command you can run yourself instead.
 
-1. **Start a session with the lead** (`crew agent lead`) and ask for the inbox. It lists only
-   what waits on you, most blocking first: PRs to accept, decisions to make, stuck work,
-   proposals.
+1. **Ask for the inbox** (`crew:inbox`; or `crew inbox`). It lists only what waits on you, most
+   blocking first: PRs to accept, decisions to make, stuck work, proposals.
 2. **Deal with each item on GitHub:** approve a PR, comment what to change, answer a question.
-   Or tell the lead, and it posts your words for you.
-3. **Pitch ideas** to the lead. It challenges them with you, and the architect turns the ones
-   you accept into small units of work.
-4. **Start a run** when you leave (`crew:run`, for example until 07:00). Agents refine, build,
-   review and merge internal work, turn your comments into fixes, and stop at the end time or
-   the budget cap. Anything that needs you waits in the inbox for next time.
+   Or tell the lead, and it posts your words for you (`crew:relay`).
+3. **Pitch ideas** to the lead (`crew:pitch`). It challenges them with you, and the architect
+   turns the ones you accept into small units of work (`crew:refine`).
+4. **Start a run** when you leave (`crew:run`; or `crew run --until 07:00`). Agents refine,
+   build, review and merge internal work, turn your comments into fixes, and stop at the end
+   time or the budget cap. Anything that needs you waits in the inbox for next time.
 
 You decide what gets built, accept user-visible work and make the costly-to-reverse decisions;
 the agents do the rest. The full design: [`docs/workflow.md`](docs/workflow.md).

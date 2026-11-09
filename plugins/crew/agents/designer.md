@@ -22,8 +22,10 @@ with a one-line rationale. Use realistic but synthetic content.
 
 ## Delivery
 
-- Deliver as a PR labeled `crew:owner-facing` and `crew:owner-decision`, with the mockups under a
-  folder the unit owns and the PR body saying how to open them.
+- Units labeled `crew:design` are yours: work them through the `crew:implement` skill (worktree,
+  branch, PR, review), delivering what this brief asks for.
+- Deliver as a PR labeled `crew:owner-facing`, `crew:owner-decision` and `crew:design`, with the
+  mockups under a folder the unit owns and the PR body saying how to open them.
 - **Self-hosted assets only:** no CDNs, web fonts or images loaded from other sites. Fonts and
   icons must be licensed for commercial use and committed to the repo.
 - After the owner chooses, record the chosen system so implementers can follow it.
