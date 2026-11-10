@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
+from crew.bets import Bet, unsplit_bets
 from crew.config import Config
 from crew.github import GitHub
 from crew.graph import Unit, build_units
@@ -35,6 +36,7 @@ class Snapshot:
     prs: dict[int, dict]  # open PRs, pr_detail dicts
     decisions: dict[int, OwnerActivity]  # open issues labeled crew:owner-decision
     problems: list[LabelProblem] = field(default_factory=list)
+    unsplit: dict[int, Bet] = field(default_factory=dict)  # merged pitch PRs with no units yet
 
 
 def _when(text: str | None) -> datetime | None:
@@ -152,9 +154,11 @@ def failed_checks(pr: dict, required: list[str]) -> list[str]:
 
 
 def take_snapshot(github: GitHub, config: Config) -> Snapshot:
-    """Read the open issues and PRs, each open PR in detail, and the answers to owner asks.
+    """Read the open issues and PRs, each open PR in detail, the answers to owner asks, and
+    the bets no unit links yet.
 
-    Label problems are found among open items only: closed ones aren't acted on.
+    Closed issues are read only when an open one doesn't already link every bet. Label
+    problems are found among open items only: closed ones aren't acted on.
     """
     issues = github.list_issues("open")
     units = build_units(issues)
@@ -167,4 +171,14 @@ def take_snapshot(github: GitHub, config: Config) -> Snapshot:
         if DECISION in unit.labels
     }
     problems = label_problems(issues, [], list(prs.values()), [])
-    return Snapshot(units=units, prs=prs, decisions=decisions, problems=problems)
+    merged = github.list_prs("merged")
+    bets = unsplit_bets(merged, issues)
+    if bets:
+        bets = unsplit_bets(merged, issues + github.list_issues("closed"))
+    return Snapshot(
+        units=units,
+        prs=prs,
+        decisions=decisions,
+        problems=problems,
+        unsplit={bet.number: bet for bet in bets},
+    )

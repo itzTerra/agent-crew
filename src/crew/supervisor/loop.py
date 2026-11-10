@@ -91,8 +91,10 @@ def progress_state(snapshot: Snapshot, kind: str, number: int, config: Config) -
 
     The flow labels plus ``crew:owner-decision``, or ``closed`` once the target left the open
     set. An implementer moving its unit from ready to in-progress hasn't finished; a followup
-    has once the owner's answer is answered.
+    has once the owner's answer is answered; a split has once a unit links its bet.
     """
+    if kind == "split":
+        return ["unsplit" if number in snapshot.unsplit else "split"]
     # A followup's target is a decision issue or a decision PR.
     item = snapshot.prs.get(number) if kind in PR_KINDS or kind == "followup" else None
     unit = None if item is not None or kind in PR_KINDS else snapshot.units.get(number)
@@ -186,6 +188,7 @@ class Supervisor:
         self.pane = pane
         self.run_id: str | None = None  # set once a real run starts; None means no events
         self._inbox_keys: set[tuple[int, str]] | None = None  # None until the baseline tick
+        self.failed_splits: set[int] = set()  # bets whose split got stuck; not retried this run
 
     # --- one tick -------------------------------------------------------------------------
 
@@ -232,6 +235,8 @@ class Supervisor:
             free = 1 if not self.agents else 0
         minutes_left = (self.until - now).total_seconds() / 60
         live = [Live(a.kind, a.number, a.issue) for a in self.agents]
+        for number in self.failed_splits:
+            snapshot.unsplit.pop(number, None)
         result = plan(snapshot, live, self.paused, self.config, max(free, 0), minutes_left)
         if not fresh:
             result.waiting.append(
@@ -311,6 +316,8 @@ class Supervisor:
             self.urls[number] = unit.url
         for number, pr in snapshot.prs.items():
             self.urls[number] = pr.get("url", "")
+        for number, bet in snapshot.unsplit.items():
+            self.urls[number] = bet.url
 
     def _update_agents(
         self, snapshot: Snapshot, window_full: bool = False, usage: Usage | None = None
@@ -376,7 +383,11 @@ class Supervisor:
                 body.removeprefix("crew run: ")
             )
         self._comment(target, body)
-        self._set_state(record.number, "owner-stuck")
+        if record.kind == "split":
+            # A merged pitch PR takes no flow label: the bet stays listed in `crew inbox`.
+            self.failed_splits.add(record.number)
+        else:
+            self._set_state(record.number, "owner-stuck")
         self.herdr.close(record.pane)
         self.agents.remove(record)
         self.summary.stuck.append(self._label(record))

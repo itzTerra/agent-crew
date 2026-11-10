@@ -170,3 +170,28 @@ def test_new_commits_or_later_feedback_void_an_approval():
         commits=[commit("2026-11-09T10:00:00Z")],
     )
     assert superseded.kind == "none"
+
+
+def test_take_snapshot_unsplit_bets_read_closed_issues_only_when_needed():
+    pitch = {"number": 27, "title": "Pitch 0001: Core", "headRefName": "pitch/0001", "url": "u"}
+    linked = issue(40, body="## Goal\n\nA.\n\n## Bet\n\n#27\n")
+    linked["state"] = "CLOSED"
+    answers = [
+        (["issue", "list", "closed"], json.dumps([linked]), 0),
+        (["issue", "list"], json.dumps([]), 0),
+        (["pr", "list", "merged"], json.dumps([pitch]), 0),
+        (["pr", "list"], json.dumps([]), 0),
+    ]
+    fake = FakeGh(answers)
+    snapshot = take_snapshot(GitHub("example/app", run=fake), load_config(PROJECT))
+    assert snapshot.unsplit == {}
+    assert fake.calls[-1][1:7] == ["issue", "list", "--repo", "example/app", "--state", "closed"]
+
+    fake = FakeGh(answers[1:])
+    snapshot = take_snapshot(GitHub("example/app", run=fake), load_config(PROJECT))
+    assert list(snapshot.unsplit) == [27]
+
+    fake = FakeGh([(["issue", "list", "open"], json.dumps([{**linked, "state": "OPEN"}]), 0),
+                   *answers])  # fmt: skip
+    take_snapshot(GitHub("example/app", run=fake), load_config(PROJECT))
+    assert not any("closed" in call for call in fake.calls)

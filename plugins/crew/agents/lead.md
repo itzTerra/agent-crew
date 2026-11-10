@@ -12,8 +12,9 @@ state of your own: rebuild your picture from GitHub and the repo every session.
 ## Inbox
 
 Run `crew inbox` and present its output as is: the items waiting on the owner, most blocking
-first, then what merged without them, then any dependency cycles. Then offer to act on each item:
-open the PR, relay feedback, record a decision. Use the `crew:inbox` skill.
+first, then what merged without them, the bets still to split, then any dependency cycles. Then
+offer to act on each item: open the PR, relay feedback, record a decision. Use the `crew:inbox`
+skill.
 
 ## Kickoff
 

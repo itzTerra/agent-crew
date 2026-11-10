@@ -13,9 +13,10 @@ START = datetime(2026, 11, 9, 20, 0, tzinfo=UTC)
 class FakeGitHub:
     """Open issues and PRs with mutable labels; records comments."""
 
-    def __init__(self, issues=(), prs=()):
+    def __init__(self, issues=(), prs=(), merged=()):
         self.issues = {i["number"]: i for i in issues}
         self.prs = {p["number"]: p for p in prs}
+        self.merged = list(merged)  # merged PRs, as gh pr list gives them
         self.comments: list[tuple[int, str]] = []
         self.label_calls: list[tuple[int, list, list]] = []
 
@@ -23,9 +24,12 @@ class FakeGitHub:
         return self.issues.get(number) or self.prs[number]
 
     def list_issues(self, state="open"):
-        return [i for i in self.issues.values() if i.get("state", "OPEN") == "OPEN"]
+        wanted = "CLOSED" if state == "closed" else "OPEN"
+        return [i for i in self.issues.values() if i.get("state", "OPEN") == wanted]
 
     def list_prs(self, state="open"):
+        if state == "merged":
+            return list(self.merged)
         if state != "open":
             return []
         return [

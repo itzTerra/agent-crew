@@ -65,7 +65,7 @@ def test_invalid_yaml_raises(tmp_path):
 def test_config_run_keys_defaults_and_validation(tmp_path):
     assert DEFAULT_ESTIMATES == {
         "merge": 15, "fix": 30, "review": 20, "followup": 30,
-        "resume": 60, "implement": 90, "refine": 20,
+        "resume": 60, "implement": 90, "refine": 20, "split": 30,
     }  # fmt: skip
     write_config(
         tmp_path,

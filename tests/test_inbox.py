@@ -177,3 +177,21 @@ def test_inbox_cli_parked_ideas_line(tmp_path, monkeypatch, capsys):
     fake.issues = [issue(2)]
     assert main(["inbox", "--root", str(root), "--peek"]) == 0
     assert "Parked ideas" not in capsys.readouterr().out
+
+
+def test_inbox_cli_lists_unsplit_bets(tmp_path, monkeypatch, capsys):
+    root = tmp_path / "project"
+    shutil.copytree(PROJECT, root)
+    bet = pr(27, labels=["crew:owner-accept"], merged_at="2026-01-05T10:00:00Z")
+    bet["headRefName"] = "pitch/0001"
+    bet["title"] = "Pitch 0001: Core loop"
+    fake = FakeGitHub(issues=[], open_prs=[], merged_prs=[bet])
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
+    assert main(["inbox", "--root", str(root), "--peek"]) == 0
+    out = capsys.readouterr().out
+    assert "Bets to split into units" in out
+    assert "#27 Pitch 0001: Core loop — https://github.com/example/app/pull/27" in out
+
+    fake.issues = [issue(30, body="## Goal\n\nA.\n\n## Bet\n\ndocs/pitches/0001-core-loop.md\n")]
+    assert main(["inbox", "--root", str(root), "--peek"]) == 0
+    assert "Bets to split" not in capsys.readouterr().out

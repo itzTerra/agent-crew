@@ -26,6 +26,9 @@ Accepted ADRs are never edited except their status; a new ADR supersedes an old 
 - File each unit as an issue from the unit template, labeled `crew:rough` and the pitch's
   `## Priority` (`crew:must`, `crew:should`, `crew:later`), or higher if a requirement in its
   spec delta says so.
+- Each unit's `## Bet` links the pitch file (`docs/pitches/NNNN-slug.md`). That link is how the
+  crew knows the bet is split: until an issue has it, `crew inbox` and `crew run` treat the
+  merged pitch as still to split. File all of a bet's units in one session.
 
 ## Refinement mode
 

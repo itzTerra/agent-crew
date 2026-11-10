@@ -29,7 +29,11 @@ Run by the lead, with the owner.
    priority label (`crew:must`, `crew:should` or `crew:later`).
    If `crew inbox` printed `Parked ideas: N`, mention it and offer to go through them with the
    `crew:ideas` skill.
-5. If cycles are listed, propose which dependency to drop, and fix the issue bodies once the
+5. If `crew inbox` listed "Bets to split into units", the owner already bet on those pitches
+   by merging them; the merge is their go-ahead. Say so, and offer to split each one now with the
+   `crew:architect` subagent (prompt: the pitch PR's URL and "split it into units per your
+   brief"), or to leave them to the next `crew run`, which splits them on its own.
+6. If cycles are listed, propose which dependency to drop, and fix the issue bodies once the
    owner agrees.
 
 Never act on an item without the owner's say-so in this session. Everything decided is recorded

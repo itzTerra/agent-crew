@@ -208,12 +208,14 @@ def _cmd_labels_set_state(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _fetch_label_problems(github: GitHub, open_issues=None, open_prs=None, merged=None):
+def _fetch_label_problems(
+    github: GitHub, open_issues=None, open_prs=None, merged=None, closed_issues=None
+):
     from crew.labels import label_problems
 
     return label_problems(
         github.list_issues("open") if open_issues is None else open_issues,
-        github.list_issues("closed"),
+        github.list_issues("closed") if closed_issues is None else closed_issues,
         github.list_prs("open") if open_prs is None else open_prs,
         github.list_prs("merged") if merged is None else merged,
     )
@@ -315,6 +317,7 @@ def _cmd_check_owns(args: argparse.Namespace) -> int:
 
 
 def _cmd_inbox(args: argparse.Namespace) -> int:
+    from crew.bets import unsplit_bets
     from crew.graph import build_units, find_cycles
     from crew.inbox import merged_without_owner, owner_inbox, parked_ideas
     from crew.state import read_state, write_state
@@ -326,6 +329,7 @@ def _cmd_inbox(args: argparse.Namespace) -> int:
     units = build_units(open_issues)
     open_prs = github.list_prs("open")
     merged = github.list_prs("merged")
+    closed_issues = github.list_issues("closed")
     state = read_state(args.root)
     since = state.get("last_inbox")
 
@@ -346,12 +350,17 @@ def _cmd_inbox(args: argparse.Namespace) -> int:
         print(f"  #{pr['number']} {pr.get('title', '')} — {pr.get('url', '')}")
     if not merged_items:
         print("  nothing")
+    if bets := unsplit_bets(merged, open_issues + closed_issues):
+        print()
+        print("Bets to split into units (the architect's next job, not yours)")
+        for bet in bets:
+            print(f"  #{bet.number} {bet.title} — {bet.url}")
     if ideas := parked_ideas(units):
         print()
         print(f"Parked ideas: {ideas}")
 
     _print_cycles(find_cycles(units))
-    problems = _fetch_label_problems(github, open_issues, open_prs, merged)
+    problems = _fetch_label_problems(github, open_issues, open_prs, merged, closed_issues)
     if problems:
         print()
         print("Label problems")

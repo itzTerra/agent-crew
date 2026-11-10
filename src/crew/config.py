@@ -18,6 +18,7 @@ DEFAULT_ESTIMATES = {
     "resume": 60,
     "implement": 90,
     "refine": 20,
+    "split": 30,
 }
 
 

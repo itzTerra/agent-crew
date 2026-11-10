@@ -9,7 +9,7 @@ from crew.graph import READY, RUNNING, ready_report, rough_order
 from crew.labels import FLOW
 from crew.supervisor.snapshot import Snapshot, checks_state, failed_checks, owner_activity
 
-Kind = Literal["merge", "fix", "review", "followup", "resume", "implement", "refine"]
+Kind = Literal["merge", "fix", "review", "followup", "resume", "implement", "split", "refine"]
 DECISION = "crew:owner-decision"
 OWNER_FACING = "crew:owner-facing"
 DESIGN = "crew:design"
@@ -98,7 +98,8 @@ def plan(
     """The actions to start now, finishing work before starting new work.
 
     Order: housekeeping (owner feedback, red CI), then merge, fix, review, followup, resume,
-    implement and refine actions, cut at ``free_slots``. Each target gets at most one action;
+    implement, split and refine actions, cut at ``free_slots``. A split turns one merged pitch
+    PR that no unit links yet into units, one bet at a time. Each target gets at most one action;
     targets with a live agent or a label problem are skipped. An action whose estimate exceeds
     ``minutes_left`` is dropped. Units or PRs labeled ``crew:design`` are built (implement,
     resume, fix) and followed up by the designer instead of the implementer and architect.
@@ -225,6 +226,17 @@ def plan(
             prompt += " It is design work: deliver the alternatives as mockups per your brief."
         branch = unit_branch(number, unit.title)
         candidates.append(Action("implement", number, None, role, None, prompt, branch))
+
+    if not any(agent.kind == "split" for agent in live):
+        for number, bet in sorted(snapshot.unsplit.items()):
+            if number in occupied:
+                continue
+            prompt = (
+                f"The owner bet on pitch {bet.pitch} by merging PR #{number} ({bet.url}). Split "
+                "it into units per your brief; each unit's Bet links the pitch file."
+            )
+            candidates.append(Action("split", number, None, "architect", None, prompt, None))
+            break
 
     ready_left = sum(1 for u in snapshot.units.values() if READY in u.labels) - len(picks)
     refining = any(agent.kind == "refine" for agent in live)

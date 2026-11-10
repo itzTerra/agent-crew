@@ -318,3 +318,28 @@ def test_followup_on_design_decision_pr_goes_to_the_designer():
         "answer: if they chose an alternative, record the chosen design per your brief; "
         "otherwise revise the alternatives."
     )
+
+
+def bet(number=27, pitch="0001"):
+    from crew.bets import Bet
+
+    return Bet(
+        number, pitch, f"Pitch {pitch}: Core loop", f"https://github.com/example/app/pull/{number}"
+    )
+
+
+def test_unsplit_bet_starts_the_architect_after_implement_before_refine():
+    snapshot = snap([issue(1, labels=["crew:ready"]), issue(2, labels=["crew:rough"])])
+    snapshot.unsplit = {27: bet(), 30: bet(30, "0002")}
+    result = make_plan(snapshot, free_slots=4)
+    assert kinds(result) == [("implement", 1), ("split", 27), ("refine", 2)]
+    split = result.actions[1]
+    assert (split.role, split.model, split.branch, split.issue) == ("architect", None, None, None)
+    assert "pitch 0001" in split.prompt and "https://github.com/example/app/pull/27" in split.prompt
+
+
+def test_one_split_at_a_time():
+    snapshot = snap([])
+    snapshot.unsplit = {27: bet(), 30: bet(30, "0002")}
+    result = make_plan(snapshot, live=[Live("split", 27, None)])
+    assert kinds(result) == []

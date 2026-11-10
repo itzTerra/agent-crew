@@ -142,7 +142,7 @@ permissions:
 | `crew labels sync` | Create or update the label set on GitHub |
 | `crew check-docs [--strict]` | Check requirements, living specs, ADRs and pitches, and the references between them |
 | `crew check-issue (--number N \| --file PATH)` | Check a unit against the definition of ready |
-| `crew inbox [--peek]` | What waits on the owner, what merged without them, and dependency cycles; marks the inbox as seen unless `--peek` |
+| `crew inbox [--peek]` | What waits on the owner, what merged without them, merged pitches no unit links yet (bets to split), and dependency cycles; marks the inbox as seen unless `--peek` |
 | `crew next [--rough]` | The ready units in the order workers should take them, why each other ready unit is left out, and dependency cycles; with `--rough`, the rough units in refinement order |
 | `crew check-owns PR [--range REV_RANGE]` | Check that a PR changes only the paths its unit owns (plus its spec delta's target); with `--range`, the paths come from `git diff --name-only` |
 | `crew labels set-state N STATE` | Move an issue and its open PRs (or a PR and its issues) to one state: `rough`, `ready`, `in-progress`, `in-review`, `changes-requested`, `owner-accept`, `owner-stuck`, or `done` to clear them |
@@ -226,7 +226,9 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
 - starts agents in this order: merge approved owner-facing PRs, fix PRs with changes requested,
   review PRs whose CI is green (Sonnet for internal units, Opus for owner-facing ones), follow up
   owner answers on `crew:owner-decision` items, resume units paused by an earlier run, implement
-  ready units (the `crew next` order), and refine rough units to keep `refine_ahead` ready;
+  ready units (the `crew next` order), split a merged pitch that no unit's `## Bet` links yet
+  into units (one at a time, by the architect), and refine rough units to keep `refine_ahead`
+  ready;
 - each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode,
   in a worktree under `.crew/worktrees/`. Claude Code asks to trust every new git root, and each
   worktree is one, so the run marks the worktree it just made as trusted in Claude Code's config
@@ -238,7 +240,7 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
 **Stopping.** The run stops at the end time or the budget cap, whichever comes first, and ends
 early when everything waits on you. It doesn't start an action it can't finish before the end
 (`estimates`, in minutes: merge 15, fix 30, review 20, followup 30, resume 60, implement 90,
-refine 20). At the stop, and on Ctrl-C, every agent is told to commit and push its work in
+split 30, refine 20). At the stop, and on Ctrl-C, every agent is told to commit and push its work in
 progress and comment what remains; after `stop_grace_minutes` the panes close. Units left
 in progress are recorded in `.crew/run.json`, and the next run resumes them. When the 5-hour usage
 window is full, the run waits for it to reset and tells the agents to continue. Starting a

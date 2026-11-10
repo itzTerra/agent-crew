@@ -53,8 +53,9 @@ Run `crew check-docs`; it must report no errors for the pitch.
 ## 3. Propose the bet
 
 Commit the pitch on a branch `pitch/NNNN`, push it and open a PR labeled `crew:owner-accept`,
-`crew:owner-facing` and the pitch's priority (`crew:must`, `crew:should` or `crew:later`). **Merging that PR is the bet.** If the owner declines, close the PR
-with their reason quoted.
+`crew:owner-facing` and the pitch's priority (`crew:must`, `crew:should` or `crew:later`). **Merging that PR is the bet.** The owner merges it on GitHub, approves
+it (a `crew run` then merges it), or tells you to merge it, and then you merge it. If the owner
+declines, close the PR with their reason quoted.
 
 When the pitch started from a `crew:idea` issue, the PR body says `From idea #N`, never a
 closing reference to it. Once the PR is open, close the idea issue with a comment linking the
@@ -62,6 +63,13 @@ PR. If the owner declines the bet as "not now", reopen the idea; see the `crew:i
 
 ## 4. After the bet
 
-Start the architect to split the pitch into units: one issue per unit from the unit template,
-labeled `crew:rough` and the pitch's priority (or higher if a unit's requirements say so), with
-owned paths and dependencies. Shared foundations come first.
+A merged pitch PR is a bet until the architect splits it into units: one issue per unit from the
+unit template, labeled `crew:rough` and the pitch's priority (or higher if a unit's requirements
+say so), with owned paths and dependencies, and a `## Bet` section that links the pitch file.
+Shared foundations come first.
+
+The bet is recorded on GitHub, not in your session: `crew inbox` lists every merged `pitch/NNNN`
+PR that no issue's `## Bet` links yet under "Bets to split into units", and `crew run` starts
+the architect for each of them. When the owner merges the bet during your session, or tells you
+to merge it, offer to split it right away with the `crew:architect` subagent; otherwise the next
+run does it.

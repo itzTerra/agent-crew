@@ -839,3 +839,51 @@ def test_run_parser_takes_pane():
         ["run", "--until", "07:00", "--pane", "p9", "--dry-run", "--once"]
     )
     assert args.pane == "p9"
+
+
+def merged_pitch(number=27, pitch="0001"):
+    return {
+        "number": number,
+        "title": f"Pitch {pitch}: Core loop",
+        "labels": [{"name": "crew:owner-accept"}],
+        "headRefName": f"pitch/{pitch}",
+        "closingIssuesReferences": [],
+        "mergedAt": "2026-11-09T10:00:00Z",
+        "url": f"https://github.com/example/app/pull/{number}",
+    }
+
+
+def test_split_finishes_once_a_unit_links_the_bet(root, tmp_path):
+    github = FakeGitHub(merged=[merged_pitch()])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    ((pane, command),) = herdr.commands
+    assert shlex.split(command)[:3] == ["crew", "agent", "architect"]
+    assert herdr.tabs == [(pane, root, "split #27")]
+    herdr.statuses[pane] = "working"
+    supervisor.tick()
+    assert len(herdr.commands) == 1  # the same bet isn't split twice
+    body = "## Goal\n\nA.\n\n## Bet\n\ndocs/pitches/0001-core-loop.md\n"
+    github.issues[40] = issue(40, labels=["crew:rough"], body=body)
+    herdr.statuses[pane] = "done"
+    supervisor.tick()
+    assert pane in herdr.closed
+    assert [a.kind for a in supervisor.agents] == ["refine"]
+
+
+def test_stuck_split_comments_on_the_pitch_pr_and_is_not_retried(root, tmp_path):
+    github = FakeGitHub(merged=[merged_pitch()])
+    herdr = FakeHerdr()
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    pane = herdr.tabs[0][0]
+    herdr.statuses[pane] = "idle"
+    supervisor.tick()  # nudged
+    supervisor.tick()  # stuck
+    ((number, body),) = github.comments
+    assert number == 27 and "stopped twice without finishing" in body
+    assert github.label_calls == []
+    assert pane in herdr.closed and supervisor.agents == []
+    supervisor.tick()
+    assert len(herdr.commands) == 1

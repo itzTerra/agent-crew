@@ -66,7 +66,9 @@ and the idea issue is closed once it is open; if the bet is declined as "not now
 reopened.
 
 **Bets**: the pitch is proposed as a pull request; merging it is the owner's bet. Only a bet
-becomes work. Work that runs past its appetite comes back to the owner as a decision; it never
+becomes work. A merged pitch PR with no unit linking it in its `## Bet` section is a bet still to
+split: `crew inbox` lists it and `crew run` starts the architect for it, so a bet merged on
+GitHub between sessions is never lost. Work that runs past its appetite comes back to the owner as a decision; it never
 silently grows.
 
 ## Downstream: units on a Kanban flow
@@ -250,7 +252,8 @@ project settings (`max_agents`). Every couple of minutes it reads GitHub and:
   owner-facing units, Sonnet for internal ones), follow-ups on owner answers, units an earlier run
   paused, then new ready units in pick order (units labeled `crew:design` go to the designer,
   the rest to the implementer) (highest priority first, then highest
-  blocker first). It keeps a few units refined ahead of the workers (just-in-time refinement);
+  blocker first), then the split of bets into units, one bet at a time. It keeps a few units
+  refined ahead of the workers (just-in-time refinement);
 - runs each agent in its own terminal tab and worktree, under the agents' GitHub login, in Claude
   Code's auto mode;
 - nudges an agent that stops before its unit moves on, once; an agent that stops again is
