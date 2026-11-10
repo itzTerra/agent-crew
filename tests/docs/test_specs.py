@@ -98,6 +98,17 @@ def test_delta_target_missing_file():
     findings = delta("delta-valid.md", target_name=None)[1]
     assert codes(findings) == [("DELTA-TARGET", 1)]
     assert "docs/specs/imports/spec.md" in findings[0].message
+    assert "only ADDED" in findings[0].message
+
+
+def test_delta_only_added_may_create_target():
+    text = "Target: docs/specs/exports/spec.md\n\n" + (FIXTURES / "delta-no-target.md").read_text(
+        encoding="utf-8"
+    )
+    parsed, findings = parse_delta(text, FIXTURES / "x.md", None)
+    assert findings == []
+    assert parsed.target == "docs/specs/exports/spec.md"
+    assert [r.name for r in parsed.added] == ["Accept PDF"]
 
 
 def test_delta_without_sections():

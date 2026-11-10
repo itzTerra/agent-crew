@@ -117,7 +117,10 @@ def test_delta_against_real_spec_fixture(config):
     assert codes(findings) == [("DOR-DELTA", 15)]
     assert "DELTA-UNKNOWN" in findings[0].message
 
-    missing = READY.replace("docs/specs/imports/spec.md", "docs/specs/export/spec.md")
+    new_area = READY.replace("docs/specs/imports/spec.md", "docs/specs/export/spec.md")
+    assert check_unit(new_area, PROJECT, config) == []
+
+    missing = body.replace("docs/specs/imports/spec.md", "docs/specs/export/spec.md")
     findings = check_unit(missing, PROJECT, config)
     assert codes(findings) == [("DOR-DELTA", 11)]
     assert "DELTA-TARGET" in findings[0].message

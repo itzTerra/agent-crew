@@ -136,12 +136,19 @@ def parse_delta(text: str, source: Path, target: Spec | None) -> tuple[Delta, li
             break
     if delta.target is None:
         findings.append(Finding(source, 1, "DELTA-TARGET", "missing `Target: <spec path>` line"))
-    elif target is None:
-        findings.append(
-            Finding(source, target_line, "DELTA-TARGET", f"target `{delta.target}` does not exist")
-        )
 
     sections = [s for s in _level2_sections(lines) if normalize(s[1]) in DELTA_SECTIONS]
+    # A delta that only adds requirements may create its target spec (a new area).
+    only_added = all(DELTA_SECTIONS[normalize(s[1])] == "added" for s in sections)
+    if delta.target is not None and target is None and not only_added:
+        findings.append(
+            Finding(
+                source,
+                target_line,
+                "DELTA-TARGET",
+                f"target `{delta.target}` does not exist; a new spec takes only ADDED requirements",
+            )
+        )
     if not sections:
         findings.append(
             Finding(source, 1, "DELTA-EMPTY", "no ADDED/MODIFIED/REMOVED/RENAMED section")
