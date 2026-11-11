@@ -94,7 +94,7 @@ claude plugin install crew@agent-crew
 `crew labels sync` creates or updates the `crew:` labels on GitHub. Run it again after upgrading.
 
 `crew-docs.yml` installs the CLI from this repo at the tag of the version that wrote it
-(`@v0.7.0`), so a change here can't break a project's CI. To upgrade, edit the tag. Projects set
+(`@v0.8.0`), so a change here can't break a project's CI. To upgrade, edit the tag. Projects set
 up with an older `crew init` add the `crew check-owns` step by hand, after `crew check-docs`,
 and the permissions it needs at the top level, after `on:`. Without them, a repo whose default
 workflow token reads only code fails the step with "Resource not accessible by integration":
