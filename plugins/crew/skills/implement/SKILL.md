@@ -26,7 +26,8 @@ PR that also carries `crew:design` and `crew:owner-decision`.
 Choose the process by scope: small → do it with tests; medium → a short plan in the PR body
 first; large → `superpowers:writing-plans`, then execute the plan.
 
-- Stay inside the unit's **Owns** paths.
+- Stay inside the unit's **Owns** paths. If the work needs another path (a test runner config,
+  a manifest), add it to the issue's Owns section and say why in the PR.
 - Write tests for every scenario in the spec delta.
 - Apply the spec delta to the living spec file it targets, in the same branch. The spec must
   describe the product as it is after this PR, with no delta headings.

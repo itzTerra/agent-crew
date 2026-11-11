@@ -14,6 +14,7 @@ from crew.config import Config
 from crew.docs.markdown import headings, normalize, split_lines
 from crew.docs.specs import Spec, parse_delta, parse_spec
 from crew.findings import Finding
+from crew.owns import expand_braces
 
 ISSUE = Path("<issue>")
 SECTIONS = ("Goal", "Bet", "Spec delta", "Owns", "Depends on", "Kind")
@@ -90,11 +91,12 @@ def delta_target(delta_text: str | None) -> str | None:
 
 
 def _owned_paths(text: str) -> list[str]:
-    """The paths of one Owns bullet: each backticked path, or the whole bullet without any."""
-    quoted = _CODE_SPAN.findall(text)
-    if quoted:
-        return [_clean_path(q) for q in quoted if q.strip()]
-    return [_clean_path(text)]
+    """The paths of one Owns bullet: each backticked path, or the whole bullet without any.
+
+    Brace patterns (``src/{a,b}.ts``) are expanded into one path each.
+    """
+    quoted = [q for q in _CODE_SPAN.findall(text) if q.strip()] or [text]
+    return [path for q in quoted for path in expand_braces(_clean_path(q))]
 
 
 def _clean_path(text: str) -> str:

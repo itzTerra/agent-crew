@@ -117,6 +117,20 @@ def test_owns_bullet_with_several_paths():
     ]
 
 
+def test_owns_brace_pattern_expands():
+    body = READY.replace(
+        "- src/import/**\n", "- `packages/p/src/{passages,select}/index.ts`\n- {a,b/{c,d}}.ts\n"
+    )
+    assert parse_unit_body(body).owns == [
+        "packages/p/src/passages/index.ts",
+        "packages/p/src/select/index.ts",
+        "a.ts",
+        "b/c.ts",
+        "b/d.ts",
+        "tests/import/",
+    ]
+
+
 def test_depends_parsed():
     assert parse_unit_body(READY).depends_on == [12, 15]
     none = READY.replace("- #12\n- #15\n", "none\n")

@@ -21,7 +21,9 @@ A ready unit has been refined, so no separate brainstorm is needed.
 
 - Write tests for the behavior, and run the project's tests, linters and `crew check-docs` before
   asking for review. Check your own work against every scenario in the unit.
-- Stay inside the paths the unit **owns**. If you must touch another path, say why in the PR.
+- Stay inside the paths the unit **owns**. If you must touch another path (a test runner config,
+  a manifest), add it to the issue's Owns section and say why in the PR, so `crew check-owns`
+  and the reviewer see it.
 - **Update the living spec in the same PR**: apply the unit's delta to the spec file it targets,
   so the spec describes the product as it now is. No delta headings stay in the spec.
 - Fill in the PR template: summary, `Closes #N`, spec changes, the run command (`docker_run`

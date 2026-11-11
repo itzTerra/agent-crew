@@ -3,7 +3,7 @@ from pathlib import Path
 
 from crew import owns
 from crew.cli import main
-from crew.owns import outside_owns, owns_match
+from crew.owns import expand_braces, outside_owns, owns_match
 from crew.units import delta_target
 
 PROJECT = Path(__file__).resolve().parent / "fixtures" / "project"
@@ -25,6 +25,24 @@ def test_owns_match_rules():
     assert owns_match("docs/a.md", "docs/") and owns_match("docs/a.md", "docs")
     assert not owns_match("docs2/a.md", "docs")
     assert owns_match("a/b/c/d.py", "a/**/d.py") and owns_match("a/d.py", "a/**/d.py")
+
+
+def test_expand_braces():
+    assert expand_braces("src/{a,b}/index.ts") == ["src/a/index.ts", "src/b/index.ts"]
+    assert expand_braces("{x,y/{1,2}}.md") == ["x.md", "y/1.md", "y/2.md"]
+    assert expand_braces("src/{a,}x") == ["src/ax", "src/x"]
+    assert expand_braces("plain/**") == ["plain/**"]
+    assert expand_braces("src/{a}.ts") == ["src/{a}.ts"]
+    assert expand_braces("src/{a,b.ts") == ["src/{a,b.ts"]
+
+
+def test_check_owns_cli_brace_pattern(monkeypatch, capsys):
+    files = ["src/a/index.ts", "src/b/index.ts", "src/c/index.ts"]
+    fake = FakeGitHub([5], {5: body(["src/{a,b}/index.ts"])}, files)
+    assert run_check(monkeypatch, fake) == 1
+    assert capsys.readouterr().out.splitlines() == [
+        "src/c/index.ts:1: OWNS-OUTSIDE not in the Owns of #5"
+    ]
 
 
 def test_outside_owns_allows_delta_target():

@@ -31,7 +31,11 @@ Satisfies: REQ-AREA-1
 
 ## Owns
 
-<!-- The paths this unit may change, as bullet items (globs allowed). -->
+<!--
+Every path this unit may change, as bullet items in backticks: source, tests, and any config,
+manifest or fixture file it touches. `src/api/` owns the whole directory; `*` and `?` match
+within one segment, `**` across segments; `src/{a,b}/index.ts` expands to both paths.
+-->
 - 
 
 ## Depends on

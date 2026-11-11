@@ -2,7 +2,8 @@
 
 Owned-path globs: ``**`` matches across ``/``; ``*`` and ``?`` stay within one path segment.
 A pattern without wildcards matches that exact path and, read as a directory, everything
-under it (``docs/`` or ``docs`` matches ``docs/a.md``).
+under it (``docs/`` or ``docs`` matches ``docs/a.md``). A brace pattern such as
+``src/{a,b}/index.ts`` is expanded (by :func:`expand_braces`) when a unit's Owns is read.
 """
 
 import re
@@ -17,6 +18,36 @@ RUN = subprocess.run
 
 class OwnsError(Exception):
     """``git diff`` failed; reported as ``crew: error:``."""
+
+
+def expand_braces(pattern: str) -> list[str]:
+    """Expand shell-style ``{a,b}`` alternatives, nested ones included, left to right.
+
+    A brace group without a top-level comma, or one left unclosed, stays as written.
+    """
+    start = 0
+    while (open_at := pattern.find("{", start)) != -1:
+        depth, commas = 0, []
+        for i in range(open_at, len(pattern)):
+            char = pattern[i]
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            elif char == "," and depth == 1:
+                commas.append(i)
+        else:
+            return [pattern]
+        if not commas:
+            start = open_at + 1
+            continue
+        head, tail = pattern[:open_at], pattern[i + 1 :]
+        cuts = [open_at, *commas, i]
+        options = [pattern[a + 1 : b] for a, b in zip(cuts, cuts[1:], strict=False)]
+        return [path for option in options for path in expand_braces(head + option + tail)]
+    return [pattern]
 
 
 def _glob_regex(glob: str) -> re.Pattern[str]:

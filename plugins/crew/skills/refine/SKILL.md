@@ -27,8 +27,17 @@ ahead, not the whole backlog.
      sections. Each requirement has one EARS statement with "shall", optional
      `Satisfies: REQ-…`, and scenarios with WHEN and THEN. A unit with no behavior change says
      exactly `none — <reason>`. A new area's spec is created by the first unit that targets it.
-   - **Owns:** bullet items with the paths (globs allowed) the unit may change; several paths
-     on one bullet each go in backticks;
+   - **Owns:** bullet items with every path the unit may change: the source and tests, and
+     also the config, manifest and fixture files the change touches (a test runner config such
+     as `vitest.config.ts`, `package.json`, a lockfile). `crew check-owns` fails a PR on any
+     other path. Write each path in backticks; several may share a bullet. Patterns:
+     - `src/api/` (or `src/api`) owns everything under that directory;
+     - `*` and `?` match within one path segment, `**` across segments (`src/**/*.test.ts`);
+     - `{a,b}` expands to one path per alternative:
+       `packages/p/src/{passages,select}/index.ts`.
+
+     Prefer a directory or a glob over a long file list, but keep it as narrow as the work, so
+     units that should run in parallel don't overlap;
    - **Depends on:** bullet items `- #N`, or exactly `none`;
    - **Kind:** `owner-facing` (user-visible, design, decisions, anything in an owner decision
      area) or `internal`. When unsure, `owner-facing`.
