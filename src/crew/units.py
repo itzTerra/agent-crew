@@ -21,6 +21,7 @@ KINDS = ("owner-facing", "internal")
 _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _DELTA_NONE = re.compile(r"^none\s*[—–-]+\s*\S", re.IGNORECASE)
 _BULLET = re.compile(r"^[-*]\s+(.*\S)\s*$")
+_CODE_SPAN = re.compile(r"`([^`]+)`")
 _DEP = re.compile(r"^[-*]\s+#(\d+)\s*$")
 _ISSUE_REF = re.compile(r"#\d+\b")
 _TARGET = re.compile(r"^\s*(?:\*\*)?Target:(?:\*\*)?\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
@@ -65,7 +66,10 @@ def parse_unit_body(body: str) -> UnitBody:
         unit.delta_text = None if (not text or _DELTA_NONE.match(text)) else text
     if "owns" in sections:
         unit.owns = [
-            _clean_path(m.group(1)) for _, t in sections["owns"].content if (m := _BULLET.match(t))
+            path
+            for _, t in sections["owns"].content
+            if (m := _BULLET.match(t))
+            for path in _owned_paths(m.group(1))
         ]
     if "depends on" in sections:
         unit.depends_on = [
@@ -83,6 +87,14 @@ def delta_target(delta_text: str | None) -> str | None:
     """The ``Target:`` spec file named in a spec delta, or None."""
     match = _TARGET.search(delta_text or "")
     return match.group(1).strip("`").strip() if match else None
+
+
+def _owned_paths(text: str) -> list[str]:
+    """The paths of one Owns bullet: each backticked path, or the whole bullet without any."""
+    quoted = _CODE_SPAN.findall(text)
+    if quoted:
+        return [_clean_path(q) for q in quoted if q.strip()]
+    return [_clean_path(text)]
 
 
 def _clean_path(text: str) -> str:

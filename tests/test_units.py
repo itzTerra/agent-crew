@@ -105,6 +105,18 @@ def test_bad_bet_owns_and_deps(config):
     ]
 
 
+def test_owns_bullet_with_several_paths():
+    body = READY.replace(
+        "- src/import/**\n", "- `src/import/**`, `docs/import.md` and `package.json`\n"
+    )
+    assert parse_unit_body(body).owns == [
+        "src/import/**",
+        "docs/import.md",
+        "package.json",
+        "tests/import/",
+    ]
+
+
 def test_depends_parsed():
     assert parse_unit_body(READY).depends_on == [12, 15]
     none = READY.replace("- #12\n- #15\n", "none\n")

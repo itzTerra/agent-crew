@@ -27,7 +27,8 @@ ahead, not the whole backlog.
      sections. Each requirement has one EARS statement with "shall", optional
      `Satisfies: REQ-…`, and scenarios with WHEN and THEN. A unit with no behavior change says
      exactly `none — <reason>`. A new area's spec is created by the first unit that targets it.
-   - **Owns:** bullet items with the paths (globs allowed) the unit may change;
+   - **Owns:** bullet items with the paths (globs allowed) the unit may change; several paths
+     on one bullet each go in backticks;
    - **Depends on:** bullet items `- #N`, or exactly `none`;
    - **Kind:** `owner-facing` (user-visible, design, decisions, anything in an owner decision
      area) or `internal`. When unsure, `owner-facing`.
