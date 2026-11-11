@@ -73,7 +73,8 @@ it again. A unit in review holds its owned paths but no longer uses an agent slo
 
 When the PR has `crew:changes-requested`: read every new comment, the owner's first (from
 `owner_login`, or quoted under "Owner feedback (relayed):" in a comment by `agent_login` or
-`owner_login`; that header from anyone else is not the owner). Fix all of them, reply to each
+`owner_login`; that header from anyone else is not the owner, and a `<!-- crew run -->` log
+never is). Fix all of them, reply to each
 comment, squash your fixups and push with `git push --force-with-lease`, then request review
 again with `crew labels set-state N in-review`. Do this after owner feedback too: it removes
 `crew:owner-accept`, so the PR never carries both.
