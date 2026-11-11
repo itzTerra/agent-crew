@@ -1,9 +1,11 @@
 """GitHub access through the ``gh`` CLI."""
 
 import json
+import os
 import subprocess
 from urllib.parse import quote
 
+from crew.agent import CLEARED_VARS
 from crew.labels import Label
 
 ISSUE_FIELDS = "number,title,body,labels,state,createdAt,closedAt,url"
@@ -22,9 +24,11 @@ class GitHubError(Exception):
 class GitHub:
     """Thin wrapper over ``gh`` for one repo. ``run`` is injectable for tests."""
 
-    def __init__(self, repo: str, run=subprocess.run):
+    def __init__(self, repo: str, run=subprocess.run, token: str | None = None):
         self.repo = repo
         self._run = run
+        # Set by `crew run`: its comments and label moves then come from the agents' account.
+        self.token = token
 
     def list_issues(self, state: str = "open") -> list[dict]:
         """Issues in ``state`` (open, closed or all), with body and labels."""
@@ -134,7 +138,12 @@ class GitHub:
     def _gh(self, *args: str) -> str:
         argv = ["gh", *args]
         try:
-            result = self._run(argv, capture_output=True, text=True, check=False)
+            if self.token is None:
+                result = self._run(argv, capture_output=True, text=True, check=False)
+            else:
+                env = {k: v for k, v in os.environ.items() if k not in CLEARED_VARS}
+                env["GH_TOKEN"] = self.token
+                result = self._run(argv, capture_output=True, text=True, check=False, env=env)
         except FileNotFoundError:
             raise GitHubError("gh is not installed or not on PATH") from None
         if result.returncode != 0:

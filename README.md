@@ -235,7 +235,11 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
   (`~/.claude.json`, or `.claude.json` in `CLAUDE_CONFIG_DIR`), the same flag the dialog's "Yes"
   sets;
 - an agent that stops before its unit moves on is nudged once; if it stops again, the run
-  comments its last output on the issue and sets `crew:owner-stuck`.
+  comments its last output on the issue and sets `crew:owner-stuck`. The note leaves out the
+  agent's input box, so unsent text never reaches GitHub;
+- the run comments and moves labels with the agents' token (checked against `agent_login`, as
+  for `crew agent`), never your login, and marks its comments `<!-- crew run -->`; agents never
+  take those as your input.
 
 **Stopping.** The run stops at the end time or the budget cap, whichever comes first, and ends
 early when everything waits on you. It doesn't start an action it can't finish before the end

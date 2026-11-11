@@ -165,6 +165,13 @@ def make_github(repo: str) -> GitHub:
     return GitHub(repo)
 
 
+def run_token(config) -> str:
+    """The agents' token for a real ``crew run``, checked against ``agent_login``; a seam."""
+    from crew.agent import agent_token
+
+    return agent_token(config.agent_login, config.owner_login)[0]
+
+
 def make_herdr() -> Herdr:
     """Build the herdr driver; a seam for tests."""
     return Herdr()
@@ -484,10 +491,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
         until = parse_until(args.until, clock())
     except ValueError as exc:
         raise CliError(f"--until: {exc}") from None
+    github = make_github(config.repo)
+    if not args.dry_run:
+        # The run's notes and label moves come from the agents' account, never the owner's:
+        # agents take what the owner's login writes as owner input.
+        github.token = run_token(config)
     supervisor = Supervisor(
         root,
         config,
-        make_github(config.repo),
+        github,
         make_herdr(),
         until=until,
         cap=args.cap,

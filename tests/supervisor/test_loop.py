@@ -887,3 +887,84 @@ def test_stuck_split_comments_on_the_pitch_pr_and_is_not_retried(root, tmp_path)
     assert pane in herdr.closed and supervisor.agents == []
     supervisor.tick()
     assert len(herdr.commands) == 1
+
+
+# --- the run's identity and stuck notes --------------------------------------------------
+
+from crew.supervisor.loop import without_input_box  # noqa: E402
+
+PANE_WITH_BOX = """\
+  Once you pick an option, I'll re-run crew check-owns 61.
+
+✻ Sautéed for 28s · done 8:43
+
+
+
+personal | dev                                                       [-]
+
+──────────────────────────────────────────────────────── crew:implementer ─
+❯ Go with option 1, edit the Owns
+───────────────────────────────────────────────────────────────────────────
+  crew · week 66% (resets Fri 12:00) · 5h 17%
+  ⏵⏵ auto mode on (shift+tab to cycle) · PR #61 · ← 1 agent
+"""
+
+
+def test_input_box_is_cut_from_pane_lines():
+    lines = without_input_box(PANE_WITH_BOX.splitlines())
+    assert lines[-1] == "personal | dev                                                       [-]"
+    assert not any("Go with option 1" in line or "auto mode" in line for line in lines)
+
+
+def test_lines_without_input_box_are_kept():
+    lines = ["┌──────────┐", "│ a table  │", "──────────────", "plain ❯ text", "done"]
+    assert without_input_box(lines) == lines
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+def test_real_run_uses_the_agents_token(root, monkeypatch, dry_run):
+    github = FakeGitHub()
+
+    class Recording:
+        def __init__(self, root, config, gh, *args, **kwargs):
+            self.gh = gh
+
+        def run(self, once=False):
+            return 0
+
+    monkeypatch.setattr("crew.supervisor.loop.Supervisor", Recording)
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
+    monkeypatch.setattr("crew.cli.make_herdr", lambda: FakeHerdr())
+    until = (START + timedelta(days=400)).isoformat()
+    argv = ["run", "--until", until, "--once", "--root", str(root)]
+    assert main(argv + (["--dry-run"] if dry_run else [])) == 0
+    assert getattr(github, "token", None) == (None if dry_run else "agents-token")
+
+
+def test_run_refuses_a_token_of_another_account(root, monkeypatch, capsys):
+    from crew.agent import AgentError
+
+    def wrong(config):
+        raise AgentError("the agents' token belongs to someone")
+
+    monkeypatch.setattr("crew.cli.run_token", wrong)
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: FakeGitHub())
+    until = (START + timedelta(days=400)).isoformat()
+    assert main(["run", "--until", until, "--once", "--root", str(root)]) == 2
+    assert "the agents' token belongs to someone" in capsys.readouterr().err
+
+
+def test_stuck_note_leaves_out_the_input_box(root, tmp_path):
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    herdr.output = PANE_WITH_BOX
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    pane = herdr.tabs[0][0]
+    github.relabel(7, "crew:in-progress")
+    herdr.statuses[pane] = "idle"
+    supervisor.tick()
+    supervisor.tick()
+    ((number, body),) = github.comments
+    assert "Once you pick an option" in body
+    assert "Go with option 1" not in body and "auto mode on" not in body

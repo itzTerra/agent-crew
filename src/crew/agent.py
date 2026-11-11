@@ -317,6 +317,34 @@ def whoami(token: str, run=subprocess.run) -> tuple[str, int]:
         raise AgentError("`gh api user` did not return a user") from None
 
 
+def agent_token(agent_login: str, owner_login: str) -> tuple[str, str, int]:
+    """Read the agents' token and check that it belongs to ``agent_login``.
+
+    Args:
+        agent_login: the login the project's config expects.
+        owner_login: the owner's login; a token of this account is always refused.
+
+    Returns:
+        ``(token, login, id)`` of the agents' account.
+
+    Raises:
+        AgentError: no or unreadable token, or a token of the owner or of another account.
+    """
+    token = read_token(token_path(os.environ))
+    login, user_id = whoami(token, run=RUN)
+    if login.casefold() == owner_login.casefold():
+        raise AgentError(
+            f"the agents' token belongs to the owner ({login}); "
+            "agents need their own account, set as agent_login"
+        )
+    if login.casefold() != agent_login.casefold():
+        raise AgentError(
+            f"the agents' token belongs to {login}, but agent_login is {agent_login}; "
+            "refusing to act under another account"
+        )
+    return token, login, user_id
+
+
 def run_agent(
     role: str,
     prompt: str | None,
@@ -346,18 +374,7 @@ def run_agent(
     plugin = plugin_installed(os.environ, root)
     if plugin is False:
         raise AgentError(f"the crew plugin is not installed; install it with: {PLUGIN_INSTALL}")
-    token = read_token(token_path(os.environ))
-    login, user_id = whoami(token, run=RUN)
-    if login.casefold() == owner_login.casefold():
-        raise AgentError(
-            f"the agents' token belongs to the owner ({login}); "
-            "agents need their own account, set as agent_login"
-        )
-    if login.casefold() != agent_login.casefold():
-        raise AgentError(
-            f"the agents' token belongs to {login}, but agent_login is {agent_login}; "
-            "refusing to start an agent under another account"
-        )
+    token, login, user_id = agent_token(agent_login, owner_login)
     gh_config_dir = new_gh_config_dir(os.environ)
     try:
         env = agent_env(os.environ, token, login, user_id, gh_config_dir)

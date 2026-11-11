@@ -35,6 +35,10 @@ NUDGE = (
     "valve in your brief: comment, label, push, stop."
 )
 STUCK_LINES = 20
+# Extra lines read for a stuck note, so the input box can be cut and STUCK_LINES remain.
+INPUT_BOX_LINES = 15
+PROMPT_MARK = "❯"
+RULE = re.compile(r"^\s*─{8,}")
 GITHUB_RETRIES = 3
 DECISION = "crew:owner-decision"
 PR_KINDS = frozenset({"merge", "fix", "review"})
@@ -140,6 +144,29 @@ def _pid_alive(pid: int) -> bool:
     except OSError:
         return False
     return True
+
+
+def without_input_box(lines: list[str]) -> list[str]:
+    """``lines`` cut above the agent's input box, if they show one.
+
+    The box holds text nobody sent (Claude Code's suggestion, or what the owner is still
+    typing) and the status bar; a stuck note must never post it as the owner's words.
+    The box is the last prompt line (``❯``) right below a rule line.
+
+    Args:
+        lines: the pane's last lines, oldest first.
+
+    Returns:
+        The lines before the box's top rule, trailing blank lines dropped; ``lines``
+        unchanged when no box is found.
+    """
+    for i in range(len(lines) - 1, 0, -1):
+        if lines[i].lstrip().startswith(PROMPT_MARK) and RULE.match(lines[i - 1]):
+            kept = lines[: i - 1]
+            while kept and not kept[-1].strip():
+                kept.pop()
+            return kept
+    return lines
 
 
 class Supervisor:
@@ -374,7 +401,8 @@ class Supervisor:
         self.paused.append({"number": number, "branch": record.branch})
 
     def _mark_stuck(self, record: AgentRecord, why: str) -> None:
-        lines = self.herdr.read(record.pane, STUCK_LINES).rstrip("\n").splitlines()[-STUCK_LINES:]
+        output = self.herdr.read(record.pane, STUCK_LINES + INPUT_BOX_LINES)
+        lines = without_input_box(output.rstrip("\n").splitlines())[-STUCK_LINES:]
         body = f"crew run: the agent {why}. Last output:\n\n```\n" + "\n".join(lines) + "\n```"
         # Reported on the unit's issue; PR work names the PR.
         target = record.issue if record.kind in PR_KINDS and record.issue else record.number

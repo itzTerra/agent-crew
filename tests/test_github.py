@@ -140,3 +140,29 @@ def test_check_issue_number_cli(monkeypatch, capsys):
     monkeypatch.setattr("crew.cli.make_github", lambda repo: GitHub(repo, run=fake))
     assert main(["check-issue", "--number", "3", "--root", str(PROJECT)]) == 1
     assert "<issue>:1: DOR-SECTION" in capsys.readouterr().out
+
+
+def test_token_reaches_gh_only_through_gh_token(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "owner-token")
+    monkeypatch.setenv("GH_HOST", "example.com")
+    seen = {}
+
+    def run(argv, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    GitHub("example/app", run=run, token="agents-token").comment(3, "hi")
+    env = seen["env"]
+    assert env["GH_TOKEN"] == "agents-token"
+    assert "GITHUB_TOKEN" not in env and "GH_HOST" not in env
+
+
+def test_no_token_keeps_the_callers_environment():
+    seen = {}
+
+    def run(argv, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    GitHub("example/app", run=run).comment(3, "hi")
+    assert "env" not in seen
