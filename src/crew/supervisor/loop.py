@@ -16,7 +16,7 @@ from crew.config import Config
 from crew.github import GitHub, GitHubError
 from crew.graph import READY, RUNNING
 from crew.inbox import owner_inbox
-from crew.labels import FLOW, set_state
+from crew.labels import FLOW, Logins, set_state
 from crew.state import read_state
 from crew.supervisor import worktrees
 from crew.supervisor.events import append_event, new_run_id, start_log
@@ -426,11 +426,13 @@ class Supervisor:
     def _set_state(self, number: int, state: str) -> None:
         """set_state, remembering a move that failed halfway so the next tick finishes it."""
         try:
-            set_state(self.github, number, state)
+            result = set_state(self.github, number, state, Logins.of(self.config))
         except GitHubError:
             self.pending_states[number] = state
             raise
         self.pending_states.pop(number, None)
+        for warning in result.warnings:
+            self._log(warning)
 
     def _repair_labels(self, snapshot: Snapshot) -> bool:
         """Move PRs whose issues drifted from their state back in step; True if any moved.

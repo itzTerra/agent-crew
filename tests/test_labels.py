@@ -1,35 +1,81 @@
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from crew.cli import main
 from crew.github import GitHub
-from crew.labels import FLOW, IDEA, LABELS, LabelProblem, label_problems, set_state
+from crew.labels import (
+    FLOW,
+    IDEA,
+    LABELS,
+    LabelProblem,
+    Logins,
+    StateResult,
+    assignee_change,
+    label_problems,
+    set_state,
+    wanted_assignees,
+)
 from tests.test_github import FakeGh
 from tests.test_graph import issue
 from tests.test_inbox import pr
 
 PROJECT = Path(__file__).resolve().parent / "fixtures" / "project"
 REPO = "example/app"
+LOGINS = Logins("owner", "bot")
 
 
-def labels_json(*names):
-    return json.dumps({"labels": [{"name": n} for n in names]})
+def labels_json(*names, assignees=()):
+    return json.dumps(
+        {"labels": [{"name": n} for n in names], "assignees": [{"login": a} for a in assignees]}
+    )
 
 
-def gh_with(prs, labels_by_number, merged=()):
+class AssigningGh(FakeGh):
+    """FakeGh whose add-assignees call echoes the logins, leaving out ``refused`` ones."""
+
+    def __init__(self, answers=(), refused=()):
+        super().__init__(answers)
+        self.refused = set(refused)
+
+    def __call__(self, argv, **kwargs):
+        if "POST" in argv and argv[argv.index("POST") + 1].endswith("/assignees"):
+            self.calls.append(argv)
+            logins = [a.split("=", 1)[1] for a in argv if a.startswith("assignees[]=")]
+            kept = [{"login": login} for login in logins if login not in self.refused]
+            return subprocess.CompletedProcess(argv, 0, json.dumps({"assignees": kept}), "")
+        return super().__call__(argv, **kwargs)
+
+
+def gh_with(prs, labels_by_number, merged=(), assigned=None, refused=()):
+    assigned = assigned or {}
     answers = [
         (["pr", "list", "open"], json.dumps(prs), 0),
         (["pr", "list", "merged"], json.dumps(list(merged)), 0),
     ]
     answers += [
-        ([f"repos/{REPO}/issues/{n}"], labels_json(*names), 0)
+        ([f"repos/{REPO}/issues/{n}"], labels_json(*names, assignees=assigned.get(n, ())), 0)
         for n, names in labels_by_number.items()
     ]
-    fake = FakeGh(answers)
+    fake = AssigningGh(answers, refused)
     return GitHub(REPO, run=fake), fake
+
+
+def assignee_calls(fake):
+    """(method, number, login) for each assignee write."""
+    out = []
+    for argv in fake.calls:
+        if "--method" not in argv:
+            continue
+        method, path = argv[argv.index("--method") + 1], argv[argv.index("--method") + 2]
+        if path.endswith("/assignees"):
+            number = int(path.split("/issues/")[1].split("/")[0])
+            logins = [a.split("=", 1)[1] for a in argv if a.startswith("assignees[]=")]
+            out += [(method, number, login) for login in logins]
+    return out
 
 
 def label_calls(fake):
@@ -40,6 +86,8 @@ def label_calls(fake):
             continue
         method, path = argv[argv.index("--method") + 1], argv[argv.index("--method") + 2]
         number = int(path.split("/issues/")[1].split("/")[0])
+        if path.endswith("/assignees"):
+            continue
         if method == "POST" and path.endswith("/labels"):
             out += [("POST", number, a.split("=", 1)[1]) for a in argv if a.startswith("labels[]=")]
         elif method == "DELETE":
@@ -52,7 +100,7 @@ def test_set_state_moves_issue_and_pr_together():
         [pr(9, labels=["crew:owner-accept"], closes=[5])],
         {5: ["crew:in-review"], 9: ["crew:owner-accept", "crew:owner-facing"]},
     )
-    assert set_state(github, 9, "in-review") == [5, 9]
+    assert set_state(github, 9, "in-review", LOGINS).numbers == [5, 9]
     assert sorted(label_calls(fake)) == [
         ("DELETE", 9, "crew:owner-accept"),
         ("POST", 9, "crew:in-review"),
@@ -64,7 +112,7 @@ def test_set_state_from_issue_reaches_its_open_prs():
         [pr(9, closes=[5]), pr(10, closes=[6])],
         {5: ["crew:in-progress"], 9: []},
     )
-    assert set_state(github, 5, "in-review") == [5, 9]
+    assert set_state(github, 5, "in-review", LOGINS).numbers == [5, 9]
     assert sorted(label_calls(fake)) == [
         ("DELETE", 5, "crew:in-progress"),
         ("POST", 5, "crew:in-review"),
@@ -82,7 +130,7 @@ def test_set_state_from_one_issue_moves_every_issue_its_pr_closes():
             9: ["crew:in-review"],
         },
     )
-    assert set_state(github, 5, "in-review") == [5, 6, 9]
+    assert set_state(github, 5, "in-review", LOGINS).numbers == [5, 6, 9]
     assert sorted(label_calls(fake)) == [
         ("DELETE", 5, "crew:changes-requested"),
         ("DELETE", 6, "crew:changes-requested"),
@@ -93,7 +141,7 @@ def test_set_state_from_one_issue_moves_every_issue_its_pr_closes():
 
 def test_set_state_keeps_owner_decision():
     github, fake = gh_with([], {3: ["crew:rough", "crew:owner-decision"]})
-    assert set_state(github, 3, "ready") == [3]
+    assert set_state(github, 3, "ready", LOGINS).numbers == [3]
     assert sorted(label_calls(fake)) == [("DELETE", 3, "crew:rough"), ("POST", 3, "crew:ready")]
 
 
@@ -103,11 +151,81 @@ def test_set_state_done_clears_flow_labels():
         {5: ["crew:in-review", "crew:internal"], 9: ["crew:in-review", "crew:changes-requested"]},
         merged=[pr(9, closes=[5])],
     )
-    assert set_state(github, 5, "done") == [5, 9]
+    assert set_state(github, 5, "done", LOGINS).numbers == [5, 9]
     assert sorted(label_calls(fake)) == [
         ("DELETE", 5, "crew:in-review"),
         ("DELETE", 9, "crew:changes-requested"),
         ("DELETE", 9, "crew:in-review"),
+    ]
+
+
+def test_wanted_assignees():
+    assert wanted_assignees({"crew:owner-decision", "crew:in-progress"}, LOGINS) == {"owner"}
+    assert wanted_assignees({"crew:owner-accept"}, LOGINS) == {"owner"}
+    assert wanted_assignees({"crew:in-review"}, LOGINS) == {"bot"}
+    assert wanted_assignees({"crew:in-progress"}, LOGINS) == {"bot"}
+    assert wanted_assignees({"crew:changes-requested"}, LOGINS) == {"bot"}
+    assert wanted_assignees({"crew:ready"}, LOGINS) == set()
+    assert wanted_assignees({"crew:idea"}, LOGINS) == set()
+    assert wanted_assignees({"crew:owner-facing", "crew:ready"}, LOGINS) == set()
+    assert wanted_assignees({"bug"}, LOGINS) is None
+    assert wanted_assignees(set(), LOGINS, closed=True) is None
+    assert wanted_assignees({"crew:in-review"}, LOGINS, closed=True) == set()
+    assert wanted_assignees({"crew:owner-decision"}, LOGINS, closed=True) == set()
+
+
+def test_assignee_change_leaves_others():
+    assert assignee_change({"crew:ready"}, {"owner", "carol"}, LOGINS) == ([], ["owner"])
+    assert assignee_change({"crew:owner-stuck"}, {"bot", "carol"}, LOGINS) == (["owner"], ["bot"])
+    assert assignee_change({"bug"}, {"owner", "bot"}, LOGINS) == ([], [])
+    assert assignee_change({"crew:in-review"}, {"bot"}, LOGINS) == ([], [])
+
+
+def test_set_state_assigns_agent_and_owner():
+    # PR 9 closes 5 and 6; only 5 waits on an owner decision.
+    github, fake = gh_with(
+        [pr(9, closes=[5, 6])],
+        {5: ["crew:in-progress", "crew:owner-decision"], 6: ["crew:in-progress"], 9: []},
+        assigned={5: ["bot"], 6: ["bot", "carol"]},
+    )
+    result = set_state(github, 9, "in-review", LOGINS)
+    assert result == StateResult([5, 6, 9], [])
+    assert sorted(assignee_calls(fake)) == [
+        ("DELETE", 5, "bot"),
+        ("POST", 5, "owner"),
+        ("POST", 9, "bot"),
+    ]
+
+
+def test_set_state_warns_when_login_dropped():
+    github, fake = gh_with([], {9: ["crew:in-progress"]}, refused={"bot"})
+    result = set_state(github, 9, "in-review", LOGINS)
+    assert result.warnings == ["#9: GitHub did not assign bot; is it a collaborator?"]
+    assert sorted(label_calls(fake)) == [
+        ("DELETE", 9, "crew:in-progress"),
+        ("POST", 9, "crew:in-review"),
+    ]
+
+
+def test_set_state_done_unassigns_everyone_managed():
+    github, fake = gh_with(
+        [],
+        {5: ["crew:in-review", "crew:owner-decision"], 9: ["crew:in-review"]},
+        merged=[pr(9, closes=[5])],
+        assigned={5: ["owner"], 9: ["bot", "carol"]},
+    )
+    assert set_state(github, 5, "done", LOGINS).numbers == [5, 9]
+    assert sorted(assignee_calls(fake)) == [("DELETE", 5, "owner"), ("DELETE", 9, "bot")]
+
+
+def test_set_state_cli_prints_warnings(monkeypatch, capsys):
+    github, _ = gh_with([], {9: ["crew:in-progress"]}, refused={"agent-b"})
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
+    assert main(["labels", "set-state", "9", "in-review", "--root", str(PROJECT)]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == ["#9: crew:in-review"]
+    assert captured.err.splitlines() == [
+        "#9: GitHub did not assign agent-b; is it a collaborator?"
     ]
 
 
@@ -206,14 +324,16 @@ def test_labels_check_fix_moves_issue_to_its_prs_state(monkeypatch, capsys):
     moved = []
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     monkeypatch.setattr(
-        "crew.labels.set_state", lambda github, n, state: moved.append((n, state)) or [5, 6, 9]
+        "crew.labels.set_state",
+        lambda github, n, state, logins: moved.append((n, state, logins))
+        or StateResult([5, 6, 9], []),
     )
     assert main(["labels", "check", "--fix", "--root", str(PROJECT)]) == 0
     assert capsys.readouterr().out.splitlines() == [
         "#9: PR #9 has crew:in-review, its issue #6 has crew:rough",
         "fixed #9: #5, #6, #9 now in-review",
     ]
-    assert moved == [(9, "in-review")]
+    assert moved == [(9, "in-review", Logins("owner-a", "agent-b"))]
 
 
 def test_labels_check_clean(monkeypatch, capsys):
@@ -265,9 +385,9 @@ def test_label_problems_unit_pr_that_closes_another_issue():
 def test_set_state_refuses_a_unit_pr_that_closes_another_issue():
     github, fake = gh_with([unit_pr(11, 4, closes=[1])], {4: ["crew:in-progress"]})
     with pytest.raises(ValueError, match=r"PR #11 is on branch unit/4-design-system but doesn't"):
-        set_state(github, 4, "in-review")
+        set_state(github, 4, "in-review", LOGINS)
     with pytest.raises(ValueError, match=r"doesn't close #4"):
-        set_state(github, 11, "in-review")
+        set_state(github, 11, "in-review", LOGINS)
     assert label_calls(fake) == []
 
 

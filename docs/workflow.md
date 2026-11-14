@@ -140,6 +140,15 @@ any open unit that depends on it, directly or indirectly, so a `crew:later` unit
 | `crew:internal` | Merges after review and CI without the owner |
 | `crew:design` | Design work: the designer builds it, not the implementer |
 
+The labels also set who is assigned, so GitHub's "Assigned to me" filter is the owner's queue.
+The owner (`owner_login`) is assigned exactly while a `crew:owner-*` ask (accept, decision, stuck,
+proposal) is on an item; the agents' account (`agent_login`) while it is in progress, in review or
+has changes requested and no ask is on it; neither otherwise, nor once it is closed or merged.
+`crew` sets this in the same call that changes the label (`crew labels set-state`, and
+`crew labels ask` / `clear` for the decision and proposal asks). It manages only these two logins:
+anyone else assigned stays, and items with no `crew:` label are left alone. `crew labels check`
+reports assignees that drifted from the labels; `--fix` and `crew run` repair them.
+
 A unit is done when its issue is closed by a merged PR with `Closes #N`.
 
 ## Review gate

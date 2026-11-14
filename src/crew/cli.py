@@ -204,18 +204,20 @@ def _cmd_labels_sync(args: argparse.Namespace) -> int:
 
 
 def _cmd_labels_set_state(args: argparse.Namespace) -> int:
-    from crew.labels import DONE, STATES, set_state
+    from crew.labels import DONE, STATES, Logins, set_state
 
     if args.state not in STATES:
         raise CliError(f"unknown state {args.state!r}; choose one of {', '.join(STATES)}")
     config = load_config(args.root)
     shown = "done" if args.state == DONE else f"crew:{args.state}"
     try:
-        changed = set_state(make_github(config.repo), args.number, args.state)
+        result = set_state(make_github(config.repo), args.number, args.state, Logins.of(config))
     except ValueError as exc:
         raise CliError(str(exc)) from None
-    for number in changed:
+    for number in result.numbers:
         print(f"#{number}: {shown}")
+    for warning in result.warnings:
+        print(warning, file=sys.stderr)
     return EXIT_OK
 
 
@@ -243,10 +245,13 @@ def _cmd_labels_check(args: argparse.Namespace) -> int:
             github.set_labels(problem.number, [], list(problem.fix_remove))
             print(f"fixed #{problem.number}")
         elif args.fix and problem.fix_state:
-            from crew.labels import set_state
+            from crew.labels import Logins, set_state
 
-            moved = ", ".join(f"#{n}" for n in set_state(github, problem.number, problem.fix_state))
+            result = set_state(github, problem.number, problem.fix_state, Logins.of(config))
+            moved = ", ".join(f"#{n}" for n in result.numbers)
             print(f"fixed #{problem.number}: {moved} now {problem.fix_state}")
+            for warning in result.warnings:
+                print(warning, file=sys.stderr)
         else:
             left += 1
     if not problems:

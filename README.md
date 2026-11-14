@@ -146,7 +146,9 @@ permissions:
 | `crew next [--rough]` | The ready units in the order workers should take them, why each other ready unit is left out, and dependency cycles; with `--rough`, the rough units in refinement order |
 | `crew check-owns PR [--range REV_RANGE]` | Check that a PR changes only the paths its unit owns (plus its spec delta's target); with `--range`, the paths come from `git diff --name-only` |
 | `crew labels set-state N STATE` | Move an issue and its open PRs (or a PR and its issues), with every issue those PRs close, to one state: `rough`, `ready`, `in-progress`, `in-review`, `changes-requested`, `owner-accept`, `owner-stuck`, or `done` to clear them |
-| `crew labels check [--fix]` | State labels that disagree; `--fix` removes those left on closed issues and merged PRs, and moves an issue out of step with its only open PR to the PR's state |
+| `crew labels ask N decision\|proposal` | Add the owner ask `crew:owner-<ask>` to an issue or PR and assign the owner |
+| `crew labels clear N decision\|proposal` | Remove that ask and hand the item back to whoever its labels say |
+| `crew labels check [--fix]` | State labels that disagree, and assignees that don't match the labels; `--fix` removes labels left on closed issues and merged PRs, moves an issue out of step with its only open PR to the PR's state, and repairs the assignees (assignee drift alone doesn't fail the check) |
 | `crew agent ROLE [PROMPT] [--model M] [--auto] [--check]` | Start an agent session under the agents' login (see below) |
 | `crew usage` | The latest weekly and 5-hour usage reading and its age |
 | `crew budget [--week N \| --reset]` | The budget cap in force; raise it for this week, or go back to the default |
@@ -161,6 +163,11 @@ Every command takes `--root PATH` (default: the current directory). Exit codes: 
 **Agents work under their own GitHub login** (`agent_login`), not yours. Under your account, PRs
 the agents open are yours, so you can't approve them (GitHub forbids approving your own PR) and
 owner-facing units can never be merged; it also makes your input and the agents' indistinguishable.
+
+Add `agent_login` as a collaborator on the repo. `crew` assigns it to the items the agents hold
+and assigns you to the items waiting on you, so GitHub's "Assigned to me" lists your queue (see
+[Labels](docs/workflow.md#labels)). GitHub silently drops an assignee who isn't a collaborator;
+`crew` then warns once and still changes the label.
 
 `crew agent <role>` starts an agent session under that login:
 

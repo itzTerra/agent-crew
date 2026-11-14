@@ -19,6 +19,8 @@ class FakeGitHub:
         self.merged = list(merged)  # merged PRs, as gh pr list gives them
         self.comments: list[tuple[int, str]] = []
         self.label_calls: list[tuple[int, list, list]] = []
+        self.assignee_calls: list[tuple[int, list, list]] = []
+        self.refused: set[str] = set()  # logins GitHub silently won't assign
 
     def _item(self, number):
         return self.issues.get(number) or self.prs[number]
@@ -45,6 +47,18 @@ class FakeGitHub:
 
     def labels_of(self, number):
         return {label["name"] for label in self._item(number)["labels"]}
+
+    def item_state(self, number):
+        item = self._item(number)
+        return self.labels_of(number), {a["login"] for a in item.get("assignees") or []}
+
+    def set_assignees(self, number, add, remove):
+        self.assignee_calls.append((number, list(add), list(remove)))
+        item = self._item(number)
+        logins = [a["login"] for a in item.get("assignees") or [] if a["login"] not in remove]
+        logins += [a for a in add if a not in logins and a not in self.refused]
+        item["assignees"] = [{"login": login} for login in logins]
+        return set(add) & self.refused
 
     def set_labels(self, number, add, remove):
         self.label_calls.append((number, list(add), list(remove)))

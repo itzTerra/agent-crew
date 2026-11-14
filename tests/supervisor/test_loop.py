@@ -710,6 +710,24 @@ def test_issue_out_of_step_with_its_pr_is_repaired_instead_of_waiting(root, tmp_
     assert "label problem" not in text
 
 
+def test_run_state_moves_assign_and_log_refusals(root, tmp_path):
+    github = FakeGitHub(
+        [
+            issue(5, labels=["crew:in-review"], owns=["a/"]),
+            issue(6, labels=["crew:changes-requested", "crew:owner-decision"], owns=["b/"]),
+        ],
+        [pr(9, 5, ["crew:in-review"])],
+    )
+    github.prs[9]["closingIssuesReferences"].append({"number": 6})
+    github.refused = {"agent-b"}
+    supervisor = make(root, tmp_path, github)
+    supervisor.tick()
+    assert (6, ["owner-a"], []) in github.assignee_calls
+    assert {n for n, add, _ in github.assignee_calls if add == ["agent-b"]} >= {5, 9}
+    text = "\n".join(supervisor.log)
+    assert "GitHub did not assign agent-b; is it a collaborator?" in text
+
+
 def test_stuck_report_for_pr_work_goes_on_the_issue(root, tmp_path):
     # M5: the spec says the stuck agent is reported on the issue.
     github = FakeGitHub(

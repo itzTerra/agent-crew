@@ -3,13 +3,11 @@
 import re
 from dataclasses import dataclass
 
-from crew.labels import DEFAULT_PRIORITY, IDEA, PRIORITY_LABELS
+from crew.labels import DEFAULT_PRIORITY, IDEA, OWNER_ASKS, OWNER_PREFIX, PRIORITY_LABELS
 from crew.units import parse_unit_body
 
 READY = "crew:ready"
 ROUGH = "crew:rough"
-OWNER_PREFIX = "crew:owner-"
-OWNER_ASKS = ("accept", "decision", "stuck", "proposal")
 WAITING_ON_OWNER = frozenset(f"{OWNER_PREFIX}{ask}" for ask in OWNER_ASKS)
 RUNNING = "crew:in-progress"
 # Units with an open PR: they hold their owned paths but no agent slot.

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from crew.config import Config
     from crew.github import GitHub
 
 
@@ -22,6 +23,11 @@ class Label:
 # A parked idea: never carries a flow label and never waits on the owner.
 IDEA = "crew:idea"
 OWNER_PROPOSAL = "crew:owner-proposal"
+# What an owner ask asks: ``crew:owner-<ask>``. ``crew:owner-facing`` is a kind, not an ask.
+OWNER_PREFIX = "crew:owner-"
+OWNER_ASKS = ("accept", "decision", "stuck", "proposal")
+# The flow labels under which the agents hold an item.
+AGENT_HELD = ("crew:in-progress", "crew:in-review", "crew:changes-requested")
 # Priority, highest first; the same scale as the requirements (Must, Should, Later).
 PRIORITY_LABELS = ("crew:must", "crew:should", "crew:later")
 # An item with no priority label counts as this one.
@@ -111,23 +117,103 @@ def _unlinked_unit_pr(pr: dict) -> str | None:
     )
 
 
-def set_state(github: GitHub, number: int, state: str) -> list[int]:
+@dataclass(frozen=True)
+class Logins:
+    """The two GitHub logins crew assigns: the owner's and the agents'."""
+
+    owner: str
+    agent: str
+
+    @classmethod
+    def of(cls, config: Config) -> Logins:
+        return cls(config.owner_login, config.agent_login)
+
+
+def wanted_assignees(labels: set[str], logins: Logins, closed: bool = False) -> set[str] | None:
+    """The managed logins an item with ``labels`` should be assigned to.
+
+    None for an item with no crew label at all (crew leaves its assignees alone); nobody
+    once it is closed or merged; the owner while any owner ask is on it; the agents while
+    they hold it; nobody otherwise.
+    """
+    if not any(name.startswith("crew:") for name in labels):
+        return None
+    if closed:
+        return set()
+    if any(f"{OWNER_PREFIX}{ask}" in labels for ask in OWNER_ASKS):
+        return {logins.owner}
+    if any(name in labels for name in AGENT_HELD):
+        return {logins.agent}
+    return set()
+
+
+def assignee_change(
+    labels: set[str], assignees: set[str], logins: Logins, closed: bool = False
+) -> tuple[list[str], list[str]]:
+    """The (add, remove) that bring an item's managed assignees in line with its labels.
+
+    Only the two managed logins are ever added or removed; anyone else assigned stays.
+    """
+    wanted = wanted_assignees(labels, logins, closed)
+    if wanted is None:
+        return [], []
+    managed = {logins.owner, logins.agent}
+    add = sorted(wanted - assignees)
+    remove = sorted((assignees & managed) - wanted)
+    return add, remove
+
+
+def sync_assignees(
+    github: GitHub,
+    number: int,
+    labels: set[str],
+    assignees: set[str],
+    logins: Logins,
+    closed: bool = False,
+) -> str | None:
+    """Set an item's managed assignees from its labels; a warning if GitHub dropped one."""
+    add, remove = assignee_change(labels, assignees, logins, closed)
+    if not (add or remove):
+        return None
+    dropped = github.set_assignees(number, add, remove)
+    return refused_warning(number, dropped)
+
+
+def refused_warning(number: int, dropped: set[str]) -> str | None:
+    """The warning for logins GitHub would not assign on ``number``, or None."""
+    if not dropped:
+        return None
+    return f"#{number}: GitHub did not assign {', '.join(sorted(dropped))}; is it a collaborator?"
+
+
+@dataclass
+class StateResult:
+    """What ``set_state`` moved, and the assignments GitHub refused along the way."""
+
+    numbers: list[int]
+    warnings: list[str]
+
+
+def set_state(github: GitHub, number: int, state: str, logins: Logins) -> StateResult:
     """Move an issue and its open PRs (or a PR and its issues) to one flow state together.
 
     Every issue an affected open PR closes moves too, so a PR that closes several issues
     keeps them all in its state whichever of them ``number`` names.
 
     Each item loses the flow labels it carries and gains ``crew:<state>``; other labels stay.
-    ``done`` removes every flow label, from the issue's merged PRs too.
+    ``done`` removes every flow label, from the issue's merged PRs too. Each item's managed
+    assignees then follow its new labels (see ``wanted_assignees``); ``done`` unassigns both.
 
     Args:
         github: the repo's client.
         number: an issue or a PR. A number found among the open PRs (or, for ``done``,
             the merged ones) is a PR; any other number is an issue.
         state: one of ``STATES``.
+        logins: the owner's and the agents' logins, to assign.
 
     Returns:
-        The numbers the state was applied to, ascending.
+        The numbers the state was applied to, ascending, and a warning per item where
+        GitHub refused an assignment (the label change still landed).
 
     Raises:
         ValueError: ``state`` is not one of ``STATES``, or ``number`` is an open PR on a
@@ -153,13 +239,23 @@ def set_state(github: GitHub, number: int, state: str) -> list[int]:
     targets |= {pr["number"] for pr in prs if set(_linked(pr)) & issues}
 
     wanted = None if state == DONE else f"crew:{state}"
+    warnings = []
     for target in sorted(targets):
-        current = github.labels_of(target)
+        current, assignees = github.item_state(target)
         remove = [name for name in _flow_of(current) if name != wanted]
         add = [wanted] if wanted and wanted not in current else []
         if add or remove:
             github.set_labels(target, add, remove)
-    return sorted(targets)
+        final = (current - set(remove)) | set(add)
+        if state == DONE:
+            # Finished work waits on nobody. The labels it had decide whether crew manages
+            # it, since done may have taken its only crew label.
+            warning = sync_assignees(github, target, current, assignees, logins, closed=True)
+        else:
+            warning = sync_assignees(github, target, final, assignees, logins)
+        if warning:
+            warnings.append(warning)
+    return StateResult(sorted(targets), warnings)
 
 
 @dataclass(frozen=True)

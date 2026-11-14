@@ -69,16 +69,16 @@ Prompts switch from raw `gh` label edits to `crew labels ask/clear`.
   - `sync_assignees(github, number, labels, assignees, logins) -> str | None`: applies `assignee_change`; returns a warning `"#N: GitHub did not assign <logins>; is it a collaborator?"` when `set_assignees` reports dropped logins, else `None`.
   - `set_state(github, number, state, logins: Logins) -> StateResult` where `@dataclass class StateResult: numbers: list[int]; warnings: list[str]`. Each target's final labels are computed from its fetched labels plus the label edit (no second fetch), then synced. Callers updated: the CLI prints `#N: <state>` per number as now and each warning to stderr; the supervisor logs warnings.
 
-- [ ] **Step 1: Write failing tests** in `tests/test_labels.py`:
+- [x] **Step 1: Write failing tests** in `tests/test_labels.py`:
   - `test_wanted_assignees` table: `{"crew:owner-decision","crew:in-progress"}` → `{"owner"}`; `{"crew:in-review"}` → `{"bot"}`; `{"crew:ready"}` → `set()`; `{"crew:owner-facing","crew:ready"}` → `set()`; `{"bug"}` → `None`; `{"crew:in-review"}` closed → `set()`.
   - `test_assignee_change_leaves_others`: labels `{"crew:ready"}`, assignees `{"owner","carol"}` → `([], ["owner"])`.
   - `test_set_state_assigns_agent_and_owner`: PR 9 closes 5 and 6; 5 has `crew:owner-decision`; `set_state(github, 9, "in-review", LOGINS)` → assignee POSTs `(5, owner)`, `(6, bot)`, `(9, bot)`.
   - `test_set_state_warns_when_login_dropped`: POST answer without `bot` → `StateResult.warnings == ["#9: GitHub did not assign bot; is it a collaborator?"]`, labels still written.
   - Update existing `set_state` tests to pass `LOGINS = Logins("owner", "bot")` and read `.numbers`; make `label_calls` ignore `/assignees` paths.
-- [ ] **Step 2: Run** `uv run pytest tests/test_labels.py -q` — expect FAIL.
-- [ ] **Step 3: Implement** the above in `src/crew/labels.py`; update the three callers; add `assignees` and `set_assignees`/`item_state` to `tests/supervisor/fakes.FakeGitHub` (items carry `"assignees": [{"login": …}]`, default empty).
-- [ ] **Step 4: Run** `uv run pytest -q` — expect PASS.
-- [ ] **Step 5: Commit** `feat: assign the owner or the agents when a unit changes state`
+- [x] **Step 2: Run** `uv run pytest tests/test_labels.py -q` — expect FAIL.
+- [x] **Step 3: Implement** the above in `src/crew/labels.py`; update the three callers; add `assignees` and `set_assignees`/`item_state` to `tests/supervisor/fakes.FakeGitHub` (items carry `"assignees": [{"login": …}]`, default empty).
+- [x] **Step 4: Run** `uv run pytest -q` — expect PASS.
+- [x] **Step 5: Commit** `feat: assign the owner or the agents when a unit changes state`
 
 ### Task 3: `crew labels ask` and `crew labels clear`
 
@@ -151,7 +151,7 @@ Prompts switch from raw `gh` label edits to `crew labels ask/clear`.
 **Files:**
 - Modify: `docs/workflow.md` (Labels section), `README.md` (agent account setup near `agent_login`)
 
-- [ ] **Step 1:** In `docs/workflow.md` under Labels, add one paragraph: the owner is assigned exactly while a `crew:owner-*` ask is on an item, the agents' account while it is in progress, in review or has changes requested, nobody otherwise; only these two logins are managed; "Assigned to me" is the owner's queue; `crew labels check` reports drift.
-- [ ] **Step 2:** In `README.md`, state that `agent_login` must be a collaborator on the repo so it can be assigned, and that `crew` warns when GitHub drops an assignment.
-- [ ] **Step 3: Run** `uv run pytest -q` — expect PASS (`test_no_private_references` included).
-- [ ] **Step 4: Commit** as `git commit --fixup=<Task 2's commit>` (the docs belong to the feature; squashed before finishing).
+- [x] **Step 1:** In `docs/workflow.md` under Labels, add one paragraph: the owner is assigned exactly while a `crew:owner-*` ask is on an item, the agents' account while it is in progress, in review or has changes requested, nobody otherwise; only these two logins are managed; "Assigned to me" is the owner's queue; `crew labels check` reports drift.
+- [x] **Step 2:** In `README.md`, state that `agent_login` must be a collaborator on the repo so it can be assigned, and that `crew` warns when GitHub drops an assignment.
+- [x] **Step 3: Run** `uv run pytest -q` — expect PASS (`test_no_private_references` included).
+- [x] **Step 4: Commit** as `git commit --fixup=<Task 2's commit>` (the docs belong to the feature; squashed before finishing).
