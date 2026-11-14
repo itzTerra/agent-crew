@@ -224,9 +224,7 @@ def test_set_state_cli_prints_warnings(monkeypatch, capsys):
     assert main(["labels", "set-state", "9", "in-review", "--root", str(PROJECT)]) == 0
     captured = capsys.readouterr()
     assert captured.out.splitlines() == ["#9: crew:in-review"]
-    assert captured.err.splitlines() == [
-        "#9: GitHub did not assign agent-b; is it a collaborator?"
-    ]
+    assert captured.err.splitlines() == ["#9: GitHub did not assign agent-b; is it a collaborator?"]
 
 
 def test_set_state_unknown_state_is_cli_error(capsys):
@@ -325,8 +323,9 @@ def test_labels_check_fix_moves_issue_to_its_prs_state(monkeypatch, capsys):
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     monkeypatch.setattr(
         "crew.labels.set_state",
-        lambda github, n, state, logins: moved.append((n, state, logins))
-        or StateResult([5, 6, 9], []),
+        lambda github, n, state, logins: (
+            moved.append((n, state, logins)) or StateResult([5, 6, 9], [])
+        ),
     )
     assert main(["labels", "check", "--fix", "--root", str(PROJECT)]) == 0
     assert capsys.readouterr().out.splitlines() == [
@@ -433,3 +432,62 @@ def test_label_problems_two_priorities():
         LabelProblem(4, "has more than one priority label: crew:must, crew:later", ()),
         LabelProblem(9, "has more than one priority label: crew:should, crew:later", ()),
     ]
+
+
+def test_ask_adds_label_and_assigns_owner_removing_agent():
+    from crew.labels import set_ask
+
+    github, fake = gh_with([], {4: ["crew:in-progress"]}, assigned={4: ["bot", "carol"]})
+    assert set_ask(github, 4, "decision", True, LOGINS) is None
+    assert label_calls(fake) == [("POST", 4, "crew:owner-decision")]
+    assert sorted(assignee_calls(fake)) == [("DELETE", 4, "bot"), ("POST", 4, "owner")]
+
+
+def test_clear_hands_back_to_agent():
+    from crew.labels import set_ask
+
+    github, fake = gh_with(
+        [], {4: ["crew:in-progress", "crew:owner-decision"]}, assigned={4: ["owner"]}
+    )
+    assert set_ask(github, 4, "decision", False, LOGINS) is None
+    assert label_calls(fake) == [("DELETE", 4, "crew:owner-decision")]
+    assert sorted(assignee_calls(fake)) == [("DELETE", 4, "owner"), ("POST", 4, "bot")]
+
+
+def test_clear_on_a_ready_issue_unassigns_everyone_managed():
+    from crew.labels import set_ask
+
+    github, fake = gh_with([], {4: ["crew:ready", "crew:owner-proposal"]}, assigned={4: ["owner"]})
+    set_ask(github, 4, "proposal", False, LOGINS)
+    assert assignee_calls(fake) == [("DELETE", 4, "owner")]
+
+
+def test_ask_rejects_accept():
+    from crew.labels import set_ask
+
+    github, fake = gh_with([], {4: ["crew:in-progress"]})
+    with pytest.raises(ValueError, match="decision, proposal"):
+        set_ask(github, 4, "accept", True, LOGINS)
+    assert fake.calls == []
+
+
+def test_labels_ask_cli(monkeypatch, capsys):
+    github, fake = gh_with([], {4: ["crew:in-progress"]}, refused={"owner-a"})
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
+    assert main(["labels", "ask", "4", "decision", "--root", str(PROJECT)]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == ["#4: crew:owner-decision"]
+    assert captured.err.splitlines() == ["#4: GitHub did not assign owner-a; is it a collaborator?"]
+
+
+def test_labels_clear_cli(monkeypatch, capsys):
+    github, fake = gh_with([], {4: ["crew:in-progress", "crew:owner-proposal"]})
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
+    assert main(["labels", "clear", "4", "proposal", "--root", str(PROJECT)]) == 0
+    assert capsys.readouterr().out.splitlines() == ["#4: removed crew:owner-proposal"]
+    assert label_calls(fake) == [("DELETE", 4, "crew:owner-proposal")]
+
+
+def test_labels_ask_cli_rejects_other_asks(capsys):
+    assert main(["labels", "ask", "4", "stuck", "--root", str(PROJECT)]) == 2
+    assert "decision" in capsys.readouterr().err

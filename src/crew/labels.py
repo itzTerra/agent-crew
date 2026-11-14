@@ -26,6 +26,8 @@ OWNER_PROPOSAL = "crew:owner-proposal"
 # What an owner ask asks: ``crew:owner-<ask>``. ``crew:owner-facing`` is a kind, not an ask.
 OWNER_PREFIX = "crew:owner-"
 OWNER_ASKS = ("accept", "decision", "stuck", "proposal")
+# The asks that stack on a flow label rather than being one.
+STACKED_ASKS = ("decision", "proposal")
 # The flow labels under which the agents hold an item.
 AGENT_HELD = ("crew:in-progress", "crew:in-review", "crew:changes-requested")
 # Priority, highest first; the same scale as the requirements (Must, Should, Later).
@@ -256,6 +258,30 @@ def set_state(github: GitHub, number: int, state: str, logins: Logins) -> StateR
         if warning:
             warnings.append(warning)
     return StateResult(sorted(targets), warnings)
+
+
+def set_ask(github: GitHub, number: int, ask: str, on: bool, logins: Logins) -> str | None:
+    """Raise (``on``) or clear ``crew:owner-<ask>`` on one item, then sync its assignees.
+
+    Only the asks that stack on a flow label go through here; ``accept`` and ``stuck`` are
+    states (see ``set_state``).
+
+    Returns:
+        A warning if GitHub refused an assignment (the label change still landed), else None.
+
+    Raises:
+        ValueError: ``ask`` is not one of ``STACKED_ASKS`` (nothing is changed).
+    """
+    if ask not in STACKED_ASKS:
+        raise ValueError(f"unknown ask {ask!r}; choose one of {', '.join(STACKED_ASKS)}")
+    label = f"{OWNER_PREFIX}{ask}"
+    current, assignees = github.item_state(number)
+    if on and label not in current:
+        github.set_labels(number, [label], [])
+    elif not on and label in current:
+        github.set_labels(number, [], [label])
+    final = current | {label} if on else current - {label}
+    return sync_assignees(github, number, final, assignees, logins)
 
 
 @dataclass(frozen=True)

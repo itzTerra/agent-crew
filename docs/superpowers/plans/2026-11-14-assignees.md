@@ -93,11 +93,11 @@ Prompts switch from raw `gh` label edits to `crew labels ask/clear`.
   - `set_ask(github, number, ask: str, on: bool, logins: Logins) -> str | None`: adds (`on=True`) or removes `crew:owner-<ask>` on that one item, then syncs its assignees; returns the warning. Raises `ValueError` for an ask outside `STACKED_ASKS`.
   - CLI: `crew labels ask N decision|proposal` prints `#N: crew:owner-<ask>`; `crew labels clear N decision|proposal` prints `#N: removed crew:owner-<ask>`; warnings to stderr; exit 0.
 
-- [ ] **Step 1: Write failing tests**: `test_ask_adds_label_and_assigns_owner_removing_agent` (item in `crew:in-progress` assigned `bot` → POST label, POST `owner`, DELETE `bot`); `test_clear_hands_back_to_agent` (reverse); `test_ask_rejects_accept` (`ValueError`, nothing written); `test_labels_ask_cli` (output line, exit 0).
-- [ ] **Step 2: Run** `uv run pytest tests/test_labels.py -q` — expect FAIL.
-- [ ] **Step 3: Implement** `set_ask` and the two subcommands (argument `ask` with `choices=STACKED_ASKS`).
-- [ ] **Step 4: Run** `uv run pytest -q` — expect PASS (including `tests/test_plugin_files.py`'s registered-commands check).
-- [ ] **Step 5: Commit** `feat: add crew labels ask and clear`
+- [x] **Step 1: Write failing tests**: `test_ask_adds_label_and_assigns_owner_removing_agent` (item in `crew:in-progress` assigned `bot` → POST label, POST `owner`, DELETE `bot`); `test_clear_hands_back_to_agent` (reverse); `test_ask_rejects_accept` (`ValueError`, nothing written); `test_labels_ask_cli` (output line, exit 0).
+- [x] **Step 2: Run** `uv run pytest tests/test_labels.py -q` — expect FAIL.
+- [x] **Step 3: Implement** `set_ask` and the two subcommands (argument `ask` with `choices=STACKED_ASKS`).
+- [x] **Step 4: Run** `uv run pytest -q` — expect PASS (including `tests/test_plugin_files.py`'s registered-commands check).
+- [x] **Step 5: Commit** `feat: add crew labels ask and clear`
 
 ### Task 4: Drift check, `--fix`, and the run supervisor's repair
 

@@ -17,6 +17,7 @@ from crew.config import ConfigError, load_config
 from crew.docs.markdown import DocumentReadError
 from crew.findings import Finding, has_errors
 from crew.github import GitHub, GitHubError
+from crew.labels import STACKED_ASKS
 from crew.owns import OwnsError
 from crew.supervisor.herdr import Herdr, HerdrError
 from crew.supervisor.loop import RunError
@@ -82,6 +83,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--root", type=Path, default=Path.cwd(), help="project root (default: .)"
     )
     set_state.set_defaults(handler=_cmd_labels_set_state)
+    for name, verb, on in (("ask", "add", True), ("clear", "remove", False)):
+        ask = label_commands.add_parser(
+            name, help=f"{verb} an owner ask (crew:owner-<ask>) and set who is assigned"
+        )
+        ask.add_argument("number", type=int, help="issue or PR number")
+        ask.add_argument("ask", choices=STACKED_ASKS, help="the ask: decision or proposal")
+        ask.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
+        ask.set_defaults(handler=_cmd_labels_ask, on=on)
     check = label_commands.add_parser("check", help="find state labels that disagree")
     check.add_argument(
         "--fix",
@@ -217,6 +226,19 @@ def _cmd_labels_set_state(args: argparse.Namespace) -> int:
     for number in result.numbers:
         print(f"#{number}: {shown}")
     for warning in result.warnings:
+        print(warning, file=sys.stderr)
+    return EXIT_OK
+
+
+def _cmd_labels_ask(args: argparse.Namespace) -> int:
+    from crew.labels import Logins, set_ask
+
+    config = load_config(args.root)
+    github = make_github(config.repo)
+    warning = set_ask(github, args.number, args.ask, args.on, Logins.of(config))
+    done = "" if args.on else "removed "
+    print(f"#{args.number}: {done}crew:owner-{args.ask}")
+    if warning:
         print(warning, file=sys.stderr)
     return EXIT_OK
 
