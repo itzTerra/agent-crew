@@ -35,7 +35,7 @@ def test_list_issues_argv_and_parse():
     assert fake.calls == [
         [
             "gh", "issue", "list", "--repo", "example/app", "--state", "open",
-            "--json", "number,title,body,labels,state,createdAt,closedAt,url",
+            "--json", "number,title,body,labels,state,createdAt,closedAt,url,assignees",
             "--limit", "1000",
         ]
     ]  # fmt: skip
@@ -46,7 +46,7 @@ def test_list_prs_argv():
     assert GitHub("example/app", run=fake).list_prs("merged") == []
     assert fake.calls[0][:7] == ["gh", "pr", "list", "--repo", "example/app", "--state", "merged"]
     assert (
-        "number,title,labels,headRefName,closingIssuesReferences,mergedAt,author,url"
+        "number,title,labels,headRefName,closingIssuesReferences,mergedAt,author,url,assignees"
         in (fake.calls[0])
     )
 
@@ -85,6 +85,37 @@ def test_set_labels_argv():
          "-f", "labels[]=crew:ready"],
         ["gh", "api", "--method", "DELETE", "repos/example/app/issues/5/labels/crew%3Arough"],
     ]  # fmt: skip
+
+
+def test_item_state_reads_labels_and_assignees():
+    answer = {"labels": [{"name": "crew:ready"}], "assignees": [{"login": "ann"}]}
+    fake = FakeGh([(["api", "repos/example/app/issues/5"], json.dumps(answer), 0)])
+    github = GitHub("example/app", run=fake)
+    assert github.item_state(5) == ({"crew:ready"}, {"ann"})
+    assert github.labels_of(5) == {"crew:ready"}
+
+
+def test_set_assignees_argv():
+    fake = FakeGh([(["--method", "POST"], json.dumps({"assignees": [{"login": "ann"}]}), 0)])
+    dropped = GitHub("example/app", run=fake).set_assignees(5, add=["ann"], remove=["bot", "cy"])
+    assert dropped == set()
+    assert fake.calls == [
+        ["gh", "api", "--method", "POST", "repos/example/app/issues/5/assignees",
+         "-f", "assignees[]=ann"],
+        ["gh", "api", "--method", "DELETE", "repos/example/app/issues/5/assignees",
+         "-f", "assignees[]=bot", "-f", "assignees[]=cy"],
+    ]  # fmt: skip
+
+
+def test_set_assignees_skips_empty_halves():
+    fake = FakeGh()
+    assert GitHub("example/app", run=fake).set_assignees(5, add=[], remove=[]) == set()
+    assert fake.calls == []
+
+
+def test_set_assignees_reports_dropped_login():
+    fake = FakeGh([(["--method", "POST"], json.dumps({"assignees": [{"login": "ann"}]}), 0)])
+    assert GitHub("example/app", run=fake).set_assignees(5, ["ann", "bot"], []) == {"bot"}
 
 
 def test_comment_argv():

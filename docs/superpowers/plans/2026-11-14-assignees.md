@@ -47,11 +47,11 @@ Prompts switch from raw `gh` label edits to `crew labels ask/clear`.
   - `GitHub.item_state(number: int) -> tuple[set[str], set[str]]`: (label names, assignee logins) from one `api repos/{repo}/issues/{n}` call; `labels_of` returns its first element.
   - `GitHub.set_assignees(number: int, add: list[str], remove: list[str]) -> set[str]`: POST `repos/{repo}/issues/{n}/assignees` with `-f assignees[]=<login>` per add; DELETE the same path with `-f assignees[]=<login>` per remove (one call each, skipped when empty). Returns the logins from `add` missing from the POST response's `assignees` (GitHub drops non-assignable users silently).
 
-- [ ] **Step 1: Write failing tests** — `test_item_state_reads_labels_and_assignees` (answer `{"labels":[{"name":"crew:ready"}],"assignees":[{"login":"ann"}]}` → `({"crew:ready"}, {"ann"})`); `test_set_assignees_argv` (asserts the POST and DELETE argv); `test_set_assignees_reports_dropped_login` (POST answer `{"assignees":[{"login":"ann"}]}` for add `["ann","bot"]` → `{"bot"}`); update `test_list_issues_argv_and_parse` to the new field string `number,title,body,labels,state,createdAt,closedAt,url,assignees`.
-- [ ] **Step 2: Run** `uv run pytest tests/test_github.py -q` — expect the new tests to FAIL.
-- [ ] **Step 3: Implement** the fields and the two methods in `src/crew/github.py`.
-- [ ] **Step 4: Run** `uv run pytest -q` — expect PASS (fix fakes that answer `labels_of` if the field change breaks them).
-- [ ] **Step 5: Commit** `feat: read and write assignees through the GitHub client`
+- [x] **Step 1: Write failing tests** — `test_item_state_reads_labels_and_assignees` (answer `{"labels":[{"name":"crew:ready"}],"assignees":[{"login":"ann"}]}` → `({"crew:ready"}, {"ann"})`); `test_set_assignees_argv` (asserts the POST and DELETE argv); `test_set_assignees_reports_dropped_login` (POST answer `{"assignees":[{"login":"ann"}]}` for add `["ann","bot"]` → `{"bot"}`); update `test_list_issues_argv_and_parse` to the new field string `number,title,body,labels,state,createdAt,closedAt,url,assignees`.
+- [x] **Step 2: Run** `uv run pytest tests/test_github.py -q` — expect the new tests to FAIL.
+- [x] **Step 3: Implement** the fields and the two methods in `src/crew/github.py`.
+- [x] **Step 4: Run** `uv run pytest -q` — expect PASS (fix fakes that answer `labels_of` if the field change breaks them).
+- [x] **Step 5: Commit** `feat: read and write assignees through the GitHub client`
 
 ### Task 2: Derive and sync assignees; `set_state` assigns
 

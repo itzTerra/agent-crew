@@ -8,13 +8,18 @@ from urllib.parse import quote
 from crew.agent import CLEARED_VARS
 from crew.labels import Label
 
-ISSUE_FIELDS = "number,title,body,labels,state,createdAt,closedAt,url"
-PR_FIELDS = "number,title,labels,headRefName,closingIssuesReferences,mergedAt,author,url"
+ISSUE_FIELDS = "number,title,body,labels,state,createdAt,closedAt,url,assignees"
+PR_FIELDS = "number,title,labels,headRefName,closingIssuesReferences,mergedAt,author,url,assignees"
 PR_DETAIL_FIELDS = (
     "number,title,url,state,labels,headRefName,closingIssuesReferences,"
-    "reviews,comments,commits,statusCheckRollup"
+    "reviews,comments,commits,statusCheckRollup,assignees"
 )
 LIST_LIMIT = "1000"
+
+
+def logins_of(item: dict) -> set[str]:
+    """The assignee logins on an issue or PR as gh or the REST API returns it."""
+    return {person["login"] for person in (item.get("assignees") or [])}
 
 
 class GitHubError(Exception):
@@ -74,8 +79,13 @@ class GitHub:
 
     def labels_of(self, number: int) -> set[str]:
         """Label names on issue or PR ``number``."""
+        return self.item_state(number)[0]
+
+    def item_state(self, number: int) -> tuple[set[str], set[str]]:
+        """Label names and assignee logins on issue or PR ``number``, from one call."""
         data = self._json("api", f"repos/{self.repo}/issues/{number}")
-        return {label["name"] for label in (data.get("labels") or [])}
+        labels = {label["name"] for label in (data.get("labels") or [])}
+        return labels, logins_of(data)
 
     def ensure_labels(self, labels: list[Label]) -> list[str]:
         """Create missing labels and update changed ones; return the names written."""
@@ -120,6 +130,23 @@ class GitHub:
             except GitHubError as exc:
                 if "HTTP 404" not in str(exc):  # the label wasn't on it: already removed
                     raise
+
+    def set_assignees(self, number: int, add: list[str], remove: list[str]) -> set[str]:
+        """Add and remove assignees on an issue or pull request.
+
+        Returns the logins from ``add`` that GitHub left off: it drops users who
+        can't be assigned (not collaborators) without an error.
+        """
+        base = f"repos/{self.repo}/issues/{number}/assignees"
+        dropped: set[str] = set()
+        if add:
+            fields = [arg for login in add for arg in ("-f", f"assignees[]={login}")]
+            data = self._json("api", "--method", "POST", base, *fields)
+            dropped = set(add) - logins_of(data if isinstance(data, dict) else {})
+        if remove:
+            fields = [arg for login in remove for arg in ("-f", f"assignees[]={login}")]
+            self._gh("api", "--method", "DELETE", base, *fields)
+        return dropped
 
     def comment(self, number: int, body: str) -> None:
         """Post a comment on an issue or pull request."""
