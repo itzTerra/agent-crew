@@ -118,6 +118,11 @@ def test_set_assignees_reports_dropped_login():
     assert GitHub("example/app", run=fake).set_assignees(5, ["ann", "bot"], []) == {"bot"}
 
 
+def test_set_assignees_compares_logins_ignoring_case():
+    fake = FakeGh([(["--method", "POST"], json.dumps({"assignees": [{"login": "Terra"}]}), 0)])
+    assert GitHub("example/app", run=fake).set_assignees(5, ["terra"], []) == set()
+
+
 def test_comment_argv():
     fake = FakeGh()
     GitHub("example/app", run=fake).comment(5, "Hello")

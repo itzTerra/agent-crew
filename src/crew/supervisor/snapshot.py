@@ -8,7 +8,7 @@ from crew.bets import Bet, unsplit_bets
 from crew.config import Config
 from crew.github import GitHub
 from crew.graph import Unit, build_units
-from crew.labels import LabelProblem, label_problems
+from crew.labels import AssigneeDrift, LabelProblem, Logins, assignee_drift, label_problems
 
 DECISION = "crew:owner-decision"
 # Hidden in every comment crew run posts. crew run uses whatever gh login it runs under,
@@ -37,6 +37,7 @@ class Snapshot:
     decisions: dict[int, OwnerActivity]  # open issues labeled crew:owner-decision
     problems: list[LabelProblem] = field(default_factory=list)
     unsplit: dict[int, Bet] = field(default_factory=dict)  # merged pitch PRs with no units yet
+    drift: list[AssigneeDrift] = field(default_factory=list)  # the planner never reads it
 
 
 def _when(text: str | None) -> datetime | None:
@@ -158,7 +159,8 @@ def take_snapshot(github: GitHub, config: Config) -> Snapshot:
     the bets no unit links yet.
 
     Closed issues are read only when an open one doesn't already link every bet. Label
-    problems are found among open items only: closed ones aren't acted on.
+    problems are found among open items only: closed ones aren't acted on. Assignee drift
+    covers the open items and the merged PRs.
     """
     issues = github.list_issues("open")
     units = build_units(issues)
@@ -172,6 +174,7 @@ def take_snapshot(github: GitHub, config: Config) -> Snapshot:
     }
     problems = label_problems(issues, [], list(prs.values()), [])
     merged = github.list_prs("merged")
+    drift = assignee_drift(issues, [], list(prs.values()), merged, Logins.of(config))
     bets = unsplit_bets(merged, issues)
     if bets:
         bets = unsplit_bets(merged, issues + github.list_issues("closed"))
@@ -181,4 +184,5 @@ def take_snapshot(github: GitHub, config: Config) -> Snapshot:
         decisions=decisions,
         problems=problems,
         unsplit={bet.number: bet for bet in bets},
+        drift=drift,
     )

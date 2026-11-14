@@ -257,27 +257,46 @@ def _fetch_label_problems(
 
 
 def _cmd_labels_check(args: argparse.Namespace) -> int:
+    from crew.labels import Logins, assignee_drift, refused_warning
+
     config = load_config(args.root)
     github = make_github(config.repo)
-    problems = _fetch_label_problems(github)
+    open_issues, closed_issues = github.list_issues("open"), github.list_issues("closed")
+    open_prs, merged = github.list_prs("open"), github.list_prs("merged")
+    problems = _fetch_label_problems(github, open_issues, open_prs, merged, closed_issues)
     left = 0
+    synced: set[int] = set()  # moved by set_state, which set their assignees too
     for problem in problems:
         print(f"#{problem.number}: {problem.message}")
         if args.fix and problem.fix_remove:
             github.set_labels(problem.number, [], list(problem.fix_remove))
             print(f"fixed #{problem.number}")
         elif args.fix and problem.fix_state:
-            from crew.labels import Logins, set_state
+            from crew.labels import set_state
 
             result = set_state(github, problem.number, problem.fix_state, Logins.of(config))
+            synced |= set(result.numbers)
             moved = ", ".join(f"#{n}" for n in result.numbers)
             print(f"fixed #{problem.number}: {moved} now {problem.fix_state}")
             for warning in result.warnings:
                 print(warning, file=sys.stderr)
         else:
             left += 1
-    if not problems:
+    # Read from the lists as they were before any fix. Removing flow labels from a closed
+    # item leaves its drift as it was (closed: nobody assigned).
+    drift = assignee_drift(open_issues, closed_issues, open_prs, merged, Logins.of(config))
+    drift = [item for item in drift if item.number not in synced]
+    for item in drift:
+        print(f"#{item.number}: assignees: {item.message}")
+        if args.fix:
+            dropped = github.set_assignees(item.number, list(item.add), list(item.remove))
+            if warning := refused_warning(item.number, dropped):
+                print(warning, file=sys.stderr)
+            else:
+                print(f"fixed #{item.number}")
+    if not problems and not drift:
         print("no label problems")
+    # Drift never fails the check: a refused assignment is not something to stop for.
     return EXIT_FINDINGS if left else EXIT_OK
 
 

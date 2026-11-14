@@ -93,6 +93,11 @@ def _flow_of(names: set[str]) -> list[str]:
     return [name for name in FLOW if name in names]
 
 
+def logins_of(item: dict) -> set[str]:
+    """The assignee logins on an issue or PR as gh or the REST API returns it."""
+    return {person["login"] for person in item.get("assignees") or []}
+
+
 def _linked(pr: dict) -> list[int]:
     return [ref["number"] for ref in pr.get("closingIssuesReferences") or []]
 
@@ -155,13 +160,17 @@ def assignee_change(
     """The (add, remove) that bring an item's managed assignees in line with its labels.
 
     Only the two managed logins are ever added or removed; anyone else assigned stays.
+    Logins compare case-insensitively, as on GitHub: an add uses the config's spelling, a
+    remove the spelling GitHub returned.
     """
     wanted = wanted_assignees(labels, logins, closed)
     if wanted is None:
         return [], []
-    managed = {logins.owner, logins.agent}
-    add = sorted(wanted - assignees)
-    remove = sorted((assignees & managed) - wanted)
+    present = {login.casefold() for login in assignees}
+    managed = {logins.owner.casefold(), logins.agent.casefold()}
+    keep = {login.casefold() for login in wanted}
+    add = sorted(login for login in wanted if login.casefold() not in present)
+    remove = sorted(login for login in assignees if login.casefold() in managed - keep)
     return add, remove
 
 
@@ -355,3 +364,44 @@ def label_problems(
         if message := _unlinked_unit_pr(pr):
             problems.append(LabelProblem(pr["number"], message, ()))
     return problems
+
+
+@dataclass(frozen=True)
+class AssigneeDrift:
+    """Managed assignees on one issue or PR that disagree with its labels.
+
+    Never a ``LabelProblem``: the planner holds back units with label problems, and a
+    refused assignment must not stall a run.
+    """
+
+    number: int
+    add: tuple[str, ...]
+    remove: tuple[str, ...]
+
+    @property
+    def message(self) -> str:
+        """``assign <logins>, unassign <logins>``, leaving out an empty half."""
+        parts = [f"assign {', '.join(self.add)}"] if self.add else []
+        parts += [f"unassign {', '.join(self.remove)}"] if self.remove else []
+        return ", ".join(parts)
+
+
+def assignee_drift(
+    open_issues: list[dict],
+    closed_issues: list[dict],
+    open_prs: list[dict],
+    merged_prs: list[dict],
+    logins: Logins,
+) -> list[AssigneeDrift]:
+    """Every item whose managed assignees differ from ``wanted_assignees``, by number.
+
+    Closed issues and merged PRs count as closed. Items with no crew label are left out.
+    """
+    items = [(item, False) for item in [*open_issues, *open_prs]]
+    items += [(item, True) for item in [*closed_issues, *merged_prs]]
+    drift = []
+    for item, closed in items:
+        add, remove = assignee_change(_names(item), logins_of(item), logins, closed)
+        if add or remove:
+            drift.append(AssigneeDrift(item["number"], tuple(add), tuple(remove)))
+    return sorted(drift, key=lambda d: d.number)

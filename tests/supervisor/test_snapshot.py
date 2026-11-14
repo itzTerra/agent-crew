@@ -174,6 +174,28 @@ def test_new_commits_or_later_feedback_void_an_approval():
     assert superseded.kind == "none"
 
 
+def test_take_snapshot_finds_assignee_drift():
+    from crew.labels import AssigneeDrift
+
+    issues = [issue(1, labels=["crew:owner-stuck"]), issue(2, labels=["bug"])]
+    issues[1]["assignees"] = [{"login": "owner-a"}]
+    merged = [
+        {"number": 8, "labels": [{"name": "crew:internal"}], "assignees": [{"login": "agent-b"}]}
+    ]
+    fake = FakeGh(
+        [
+            (["issue", "list"], json.dumps(issues), 0),
+            (["pr", "list", "merged"], json.dumps(merged), 0),
+            (["pr", "list"], "[]", 0),
+        ]
+    )
+    snapshot = take_snapshot(GitHub("example/app", run=fake), load_config(PROJECT))
+    assert snapshot.drift == [
+        AssigneeDrift(1, ("owner-a",), ()),
+        AssigneeDrift(8, (), ("agent-b",)),
+    ]
+
+
 def test_take_snapshot_unsplit_bets_read_closed_issues_only_when_needed():
     pitch = {"number": 27, "title": "Pitch 0001: Core", "headRefName": "pitch/0001", "url": "u"}
     linked = issue(40, body="## Goal\n\nA.\n\n## Bet\n\n#27\n")

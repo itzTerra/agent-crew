@@ -6,7 +6,7 @@ import subprocess
 from urllib.parse import quote
 
 from crew.agent import CLEARED_VARS
-from crew.labels import Label
+from crew.labels import Label, logins_of
 
 ISSUE_FIELDS = "number,title,body,labels,state,createdAt,closedAt,url,assignees"
 PR_FIELDS = "number,title,labels,headRefName,closingIssuesReferences,mergedAt,author,url,assignees"
@@ -15,11 +15,6 @@ PR_DETAIL_FIELDS = (
     "reviews,comments,commits,statusCheckRollup,assignees"
 )
 LIST_LIMIT = "1000"
-
-
-def logins_of(item: dict) -> set[str]:
-    """The assignee logins on an issue or PR as gh or the REST API returns it."""
-    return {person["login"] for person in (item.get("assignees") or [])}
 
 
 class GitHubError(Exception):
@@ -134,15 +129,16 @@ class GitHub:
     def set_assignees(self, number: int, add: list[str], remove: list[str]) -> set[str]:
         """Add and remove assignees on an issue or pull request.
 
-        Returns the logins from ``add`` that GitHub left off: it drops users who
-        can't be assigned (not collaborators) without an error.
+        Returns the logins from ``add`` that GitHub left off (compared ignoring case): it
+        drops users who can't be assigned (not collaborators) without an error.
         """
         base = f"repos/{self.repo}/issues/{number}/assignees"
         dropped: set[str] = set()
         if add:
             fields = [arg for login in add for arg in ("-f", f"assignees[]={login}")]
             data = self._json("api", "--method", "POST", base, *fields)
-            dropped = set(add) - logins_of(data if isinstance(data, dict) else {})
+            kept = {login.casefold() for login in logins_of(data if isinstance(data, dict) else {})}
+            dropped = {login for login in add if login.casefold() not in kept}
         if remove:
             fields = [arg for login in remove for arg in ("-f", f"assignees[]={login}")]
             self._gh("api", "--method", "DELETE", base, *fields)

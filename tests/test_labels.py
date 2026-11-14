@@ -491,3 +491,92 @@ def test_labels_clear_cli(monkeypatch, capsys):
 def test_labels_ask_cli_rejects_other_asks(capsys):
     assert main(["labels", "ask", "4", "stuck", "--root", str(PROJECT)]) == 2
     assert "decision" in capsys.readouterr().err
+
+
+def assigned(item, *logins):
+    item["assignees"] = [{"login": login} for login in logins]
+    return item
+
+
+def test_assignee_drift_strict_owner():
+    from crew.labels import AssigneeDrift, assignee_drift
+
+    drift = assignee_drift(
+        [assigned(issue(3, labels=["crew:ready"]), "owner", "carol")], [], [], [], LOGINS
+    )
+    assert drift == [AssigneeDrift(3, (), ("owner",))]
+    assert drift[0].message == "unassign owner"
+
+
+def test_assignee_drift_ignores_non_crew_items():
+    from crew.labels import assignee_drift
+
+    assert assignee_drift([assigned(issue(3, labels=["bug"]), "owner")], [], [], [], LOGINS) == []
+
+
+def test_assignee_drift_closed_and_merged():
+    from crew.labels import AssigneeDrift, assignee_drift
+
+    merged = assigned(pr(8, labels=["crew:internal"], merged_at="2026-01-01T00:00:00Z"), "bot")
+    gone = assigned(closed(2, ["crew:owner-decision"]), "owner")
+    held = assigned(pr(9, labels=["crew:in-review"]), "owner")
+    drift = assignee_drift([], [gone], [held], [merged], LOGINS)
+    assert drift == [
+        AssigneeDrift(2, (), ("owner",)),
+        AssigneeDrift(8, (), ("bot",)),
+        AssigneeDrift(9, ("bot",), ("owner",)),
+    ]
+    assert drift[2].message == "assign bot, unassign owner"
+
+
+class FakeDriftGitHub(FakeLabelsGitHub):
+    def __init__(self, *args, refused=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.assigned = []
+        self.refused = set(refused)
+
+    def set_assignees(self, number, add, remove):
+        self.assigned.append((number, list(add), list(remove)))
+        return set(add) & self.refused
+
+
+def test_labels_check_reports_drift_without_failing(monkeypatch, capsys):
+    fake = FakeDriftGitHub(open_issues=[issue(4, labels=["crew:owner-decision"])])
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
+    assert main(["labels", "check", "--root", str(PROJECT)]) == 0
+    assert capsys.readouterr().out.splitlines() == ["#4: assignees: assign owner-a"]
+    assert fake.assigned == []
+    assert main(["labels", "check", "--fix", "--root", str(PROJECT)]) == 0
+    assert capsys.readouterr().out.splitlines() == ["#4: assignees: assign owner-a", "fixed #4"]
+    assert fake.assigned == [(4, ["owner-a"], [])]
+
+
+def test_labels_check_fix_reports_refused_assignment(monkeypatch, capsys):
+    fake = FakeDriftGitHub(open_issues=[issue(4, labels=["crew:in-progress"])], refused={"agent-b"})
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
+    assert main(["labels", "check", "--fix", "--root", str(PROJECT)]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == ["#4: assignees: assign agent-b"]
+    assert captured.err.splitlines() == ["#4: GitHub did not assign agent-b; is it a collaborator?"]
+
+
+def test_labels_check_drift_and_problems_exit_on_problems_only(monkeypatch, capsys):
+    fake = FakeDriftGitHub(
+        open_issues=[
+            issue(1, labels=["crew:ready", "crew:rough"]),
+            issue(4, labels=["crew:in-review"]),
+        ]
+    )
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
+    assert main(["labels", "check", "--root", str(PROJECT)]) == 1
+    assert capsys.readouterr().out.splitlines() == [
+        "#1: has more than one state label: crew:rough, crew:ready",
+        "#4: assignees: assign agent-b",
+    ]
+
+
+def test_assignee_change_ignores_login_case():
+    logins = Logins("terra", "bot")
+    assert assignee_change({"crew:ready"}, {"Terra", "carol"}, logins) == ([], ["Terra"])
+    assert assignee_change({"crew:owner-decision"}, {"Terra"}, logins) == ([], [])
+    assert assignee_change({"crew:in-review"}, {"Terra"}, logins) == (["bot"], ["Terra"])

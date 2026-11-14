@@ -16,7 +16,7 @@ from crew.config import Config
 from crew.github import GitHub, GitHubError
 from crew.graph import READY, RUNNING
 from crew.inbox import owner_inbox
-from crew.labels import FLOW, Logins, set_state
+from crew.labels import FLOW, AssigneeDrift, Logins, refused_warning, set_state
 from crew.state import read_state
 from crew.supervisor import worktrees
 from crew.supervisor.events import append_event, new_run_id, start_log
@@ -212,6 +212,9 @@ class Supervisor:
         self.next_sleep: float = config.poll_seconds
         self.window_reset_at: datetime | None = None  # while the 5-hour window is full
         self.pending_states: dict[int, str] = {}  # label moves a GitHub error cut short
+        # (number, login) GitHub refused to assign: logged once, not retried this run.
+        self.refused_assignees: set[tuple[int, str]] = set()
+        self.failed_assignees: set[int] = set()  # assignee fixes that errored: logged once
         self.pane = pane
         self.run_id: str | None = None  # set once a real run starts; None means no events
         self._inbox_keys: set[tuple[int, str]] | None = None  # None until the baseline tick
@@ -437,7 +440,8 @@ class Supervisor:
     def _repair_labels(self, snapshot: Snapshot) -> bool:
         """Move PRs whose issues drifted from their state back in step; True if any moved.
 
-        A dry run only says what it would move.
+        Then, if nothing moved (a move sets assignees itself and leaves the snapshot stale),
+        fix assignee drift. A dry run only says what it would do.
         """
         fixes = {p.number: p.fix_state for p in snapshot.problems if p.fix_state}
         for number, state in sorted(fixes.items()):
@@ -446,7 +450,37 @@ class Supervisor:
             else:
                 self._set_state(number, state)
                 self._log(f"#{number}: moved its issues to {state} (label drift)")
-        return bool(fixes) and not self.dry_run
+        moved = bool(fixes) and not self.dry_run
+        if not moved:
+            self._repair_assignees(snapshot)
+        return moved
+
+    def _repair_assignees(self, snapshot: Snapshot) -> None:
+        for drift in snapshot.drift:
+            add = [
+                login for login in drift.add if (drift.number, login) not in self.refused_assignees
+            ]
+            if not (add or drift.remove):
+                continue
+            if self.dry_run:
+                self._log(f"#{drift.number}: would {drift.message} (assignee drift)")
+                continue
+            try:
+                dropped = self.github.set_assignees(drift.number, add, list(drift.remove))
+            except GitHubError as exc:
+                # Drift never stalls a run: one item GitHub won't change is skipped.
+                if drift.number not in self.failed_assignees:
+                    self.failed_assignees.add(drift.number)
+                    self._log(f"#{drift.number}: could not fix assignees: {exc}")
+                continue
+            self.refused_assignees |= {(drift.number, login) for login in dropped}
+            if warning := refused_warning(drift.number, dropped):
+                self._log(warning)
+            done = AssigneeDrift(
+                drift.number, tuple(login for login in add if login not in dropped), drift.remove
+            )
+            if done.message:
+                self._log(f"#{drift.number}: {done.message} (assignee drift)")
 
     def _retry_label_moves(self) -> None:
         for number, state in list(self.pending_states.items()):

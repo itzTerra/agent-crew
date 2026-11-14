@@ -114,16 +114,16 @@ Prompts switch from raw `gh` label edits to `crew labels ask/clear`.
   - `crew labels check`: after the label problems, prints `#N: assignees: <message>` per drift; with `--fix` applies `set_assignees` and prints `fixed #N` (or the warning). Drift never changes the exit code; "no label problems" prints only when there are neither problems nor drift.
   - Supervisor: `_repair_labels` also applies drift (dry run: logs `#N: would <message> (assignee drift)`); a dropped login is logged once per run per (number, login) via a `self.refused_assignees: set[tuple[int, str]]`.
 
-- [ ] **Step 1: Write failing tests**:
+- [x] **Step 1: Write failing tests**:
   - `test_assignee_drift_strict_owner`: open `crew:ready` issue assigned `owner` and `carol` → one drift `(n, (), ("owner",))`.
   - `test_assignee_drift_ignores_non_crew_items`: issue labeled `bug`, assigned `owner` → `[]`.
   - `test_assignee_drift_closed_and_merged`: merged PR assigned `bot` → remove `bot`.
   - `test_labels_check_reports_drift_without_failing`: exit 0, line `#4: assignees: assign owner`; with `--fix`, `set_assignees` called and `fixed #4` printed.
   - Supervisor: `test_repair_applies_assignee_drift`, `test_dry_run_only_logs_assignee_drift`, `test_refused_assignment_logged_once` (two ticks, one log line, units still planned).
-- [ ] **Step 2: Run** `uv run pytest tests/test_labels.py tests/supervisor -q` — expect FAIL.
-- [ ] **Step 3: Implement** as above.
-- [ ] **Step 4: Run** `uv run pytest -q` — expect PASS.
-- [ ] **Step 5: Commit** `feat: find and repair assignee drift`
+- [x] **Step 2: Run** `uv run pytest tests/test_labels.py tests/supervisor -q` — expect FAIL.
+- [x] **Step 3: Implement** as above.
+- [x] **Step 4: Run** `uv run pytest -q` — expect PASS.
+- [x] **Step 5: Commit** `feat: find and repair assignee drift`
 
 ### Task 5: Prompts and skills use `crew labels ask/clear`; links in every message
 

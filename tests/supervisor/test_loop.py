@@ -728,6 +728,63 @@ def test_run_state_moves_assign_and_log_refusals(root, tmp_path):
     assert "GitHub did not assign agent-b; is it a collaborator?" in text
 
 
+def test_repair_applies_assignee_drift(root, tmp_path):
+    owned = issue(5, labels=["crew:ready"], owns=["a/"])
+    owned["assignees"] = [{"login": "owner-a"}, {"login": "carol"}]
+    github = FakeGitHub([owned, issue(6, labels=["crew:owner-decision"], owns=["b/"])])
+    supervisor = make(root, tmp_path, github)
+    supervisor.tick()
+    assert (5, [], ["owner-a"]) in github.assignee_calls
+    assert (6, ["owner-a"], []) in github.assignee_calls
+    assert github.issues[5]["assignees"] == [{"login": "carol"}]
+    assert "#5: unassign owner-a (assignee drift)" in "\n".join(supervisor.log)
+
+
+def test_dry_run_only_logs_assignee_drift(root, tmp_path):
+    github = FakeGitHub([issue(6, labels=["crew:owner-decision"], owns=["b/"])])
+    supervisor = make(root, tmp_path, github, dry_run=True)
+    supervisor.run(once=True)
+    assert github.assignee_calls == []
+    assert "#6: would assign owner-a (assignee drift)" in "\n".join(supervisor.log)
+
+
+def test_refused_assignment_logged_once(root, tmp_path):
+    github = FakeGitHub([issue(5, labels=["crew:in-progress"], owns=["a/"]), ready(7, "b/")])
+    github.refused = {"agent-b"}
+    supervisor = make(root, tmp_path, github)
+    supervisor.tick()
+    supervisor.tick()
+    text = "\n".join(supervisor.log)
+    assert text.count("#5: GitHub did not assign agent-b; is it a collaborator?") == 1
+    assert [record.number for record in supervisor.agents] == [7]
+
+
+def test_failed_assignee_call_does_not_stall_the_run(root, tmp_path):
+    from crew.github import GitHubError
+
+    github = FakeGitHub(
+        [
+            issue(5, labels=["crew:owner-decision"], owns=["a/"]),
+            issue(6, labels=["crew:owner-stuck"], owns=["b/"]),
+            ready(7, "c/"),
+        ]
+    )
+    real = github.set_assignees
+
+    def flaky(number, add, remove):
+        if number == 5:
+            raise GitHubError("gh api failed: HTTP 410")
+        return real(number, add, remove)
+
+    github.set_assignees = flaky
+    supervisor = make(root, tmp_path, github)
+    supervisor.tick()
+    supervisor.tick()
+    assert github.issues[6]["assignees"] == [{"login": "owner-a"}]
+    assert [record.number for record in supervisor.agents] == [7]
+    assert "\n".join(supervisor.log).count("#5: could not fix assignees") == 1
+
+
 def test_stuck_report_for_pr_work_goes_on_the_issue(root, tmp_path):
     # M5: the spec says the stuck agent is reported on the issue.
     github = FakeGitHub(
