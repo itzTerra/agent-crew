@@ -83,7 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     set_state.set_defaults(handler=_cmd_labels_set_state)
     check = label_commands.add_parser("check", help="find state labels that disagree")
-    check.add_argument("--fix", action="store_true", help="remove labels left on closed items")
+    check.add_argument(
+        "--fix",
+        action="store_true",
+        help="fix what is safe: labels left on closed items, issues out of step with their PR",
+    )
     check.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     check.set_defaults(handler=_cmd_labels_check)
 
@@ -238,6 +242,11 @@ def _cmd_labels_check(args: argparse.Namespace) -> int:
         if args.fix and problem.fix_remove:
             github.set_labels(problem.number, [], list(problem.fix_remove))
             print(f"fixed #{problem.number}")
+        elif args.fix and problem.fix_state:
+            from crew.labels import set_state
+
+            moved = ", ".join(f"#{n}" for n in set_state(github, problem.number, problem.fix_state))
+            print(f"fixed #{problem.number}: {moved} now {problem.fix_state}")
         else:
             left += 1
     if not problems:

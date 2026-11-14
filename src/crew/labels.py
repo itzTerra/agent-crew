@@ -114,6 +114,9 @@ def _unlinked_unit_pr(pr: dict) -> str | None:
 def set_state(github: GitHub, number: int, state: str) -> list[int]:
     """Move an issue and its open PRs (or a PR and its issues) to one flow state together.
 
+    Every issue an affected open PR closes moves too, so a PR that closes several issues
+    keeps them all in its state whichever of them ``number`` names.
+
     Each item loses the flow labels it carries and gains ``crew:<state>``; other labels stay.
     ``done`` removes every flow label, from the issue's merged PRs too.
 
@@ -138,12 +141,16 @@ def set_state(github: GitHub, number: int, state: str) -> list[int]:
         problem = _unlinked_unit_pr(pr)
         if problem and number in (pr["number"], _unit_of(pr)):
             raise ValueError(problem)
+    open_prs = list(prs)
     if state == DONE:
         prs += github.list_prs("merged")
     by_number = {pr["number"]: pr for pr in prs}
-    issues = _linked(by_number[number]) if number in by_number else [number]
+    issues = set(_linked(by_number[number])) if number in by_number else {number}
+    # An open PR that closes one of the issues brings every other issue it closes along.
+    while more := {n for pr in open_prs if set(_linked(pr)) & issues for n in _linked(pr)} - issues:
+        issues |= more
     targets = {number, *issues}
-    targets |= {pr["number"] for pr in prs if set(_linked(pr)) & set(issues)}
+    targets |= {pr["number"] for pr in prs if set(_linked(pr)) & issues}
 
     wanted = None if state == DONE else f"crew:{state}"
     for target in sorted(targets):
@@ -162,6 +169,8 @@ class LabelProblem:
     number: int
     message: str
     fix_remove: tuple[str, ...]  # empty: not safe to fix automatically
+    # A state (as for ``set_state``) to move ``number`` and its issues to instead, or None.
+    fix_state: str | None = None
 
 
 def label_problems(
@@ -176,7 +185,8 @@ def label_problems(
     (fixable by removing them); open items with more than one flow label or more than one
     priority label; open issues with
     ``crew:idea`` and a flow label or ``crew:owner-proposal``; open PRs whose
-    flow label differs from their linked open issue's; open PRs on a ``unit/<n>-…`` branch
+    flow label differs from their linked open issue's (fixable by moving the issue to the
+    PR's state when it is the issue's only open PR); open PRs on a ``unit/<n>-…`` branch
     that don't close issue ``n``.
     """
     problems: list[LabelProblem] = []
@@ -203,6 +213,10 @@ def label_problems(
                 message = f"parked idea also has {', '.join(clash)}"
                 problems.append(LabelProblem(item["number"], message, ()))
     issue_flow = {item["number"]: _flow_of(_names(item)) for item in open_issues}
+    open_prs_of: dict[int, int] = {}
+    for pr in open_prs:
+        for linked in _linked(pr):
+            open_prs_of[linked] = open_prs_of.get(linked, 0) + 1
     for pr in sorted(open_prs, key=lambda i: i["number"]):
         pr_flow = _flow_of(_names(pr))
         for linked in _linked(pr):
@@ -211,7 +225,10 @@ def label_problems(
                 message = (
                     f"PR #{pr['number']} has {pr_flow[0]}, its issue #{linked} has {theirs[0]}"
                 )
-                problems.append(LabelProblem(pr["number"], message, ()))
+                # The PR's label wins when it is the issue's only open PR.
+                only = open_prs_of[linked] == 1
+                fix = pr_flow[0].removeprefix("crew:") if only else None
+                problems.append(LabelProblem(pr["number"], message, (), fix))
     for pr in sorted(open_prs, key=lambda i: i["number"]):
         if message := _unlinked_unit_pr(pr):
             problems.append(LabelProblem(pr["number"], message, ()))

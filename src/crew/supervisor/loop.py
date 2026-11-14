@@ -239,6 +239,8 @@ class Supervisor:
                 return f"budget cap reached ({usage.week_percent:g}% of {cap}%)"
         window_full = self._window_full(usage if fresh else None, now)
         snapshot = take_snapshot(self.github, self.config)
+        if self._repair_labels(snapshot):
+            snapshot = take_snapshot(self.github, self.config)
         self._remember_urls(snapshot)
         if self.dry_run:
             if window_full:
@@ -429,6 +431,20 @@ class Supervisor:
             self.pending_states[number] = state
             raise
         self.pending_states.pop(number, None)
+
+    def _repair_labels(self, snapshot: Snapshot) -> bool:
+        """Move PRs whose issues drifted from their state back in step; True if any moved.
+
+        A dry run only says what it would move.
+        """
+        fixes = {p.number: p.fix_state for p in snapshot.problems if p.fix_state}
+        for number, state in sorted(fixes.items()):
+            if self.dry_run:
+                self._log(f"#{number}: would move its issues to {state} (label drift)")
+            else:
+                self._set_state(number, state)
+                self._log(f"#{number}: moved its issues to {state} (label drift)")
+        return bool(fixes) and not self.dry_run
 
     def _retry_label_moves(self) -> None:
         for number, state in list(self.pending_states.items()):

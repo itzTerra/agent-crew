@@ -72,6 +72,25 @@ def test_set_state_from_issue_reaches_its_open_prs():
     ]
 
 
+def test_set_state_from_one_issue_moves_every_issue_its_pr_closes():
+    # A PR closing #5 and #6: moving #5 (as the implementer does) moves the PR and #6 too.
+    github, fake = gh_with(
+        [pr(9, closes=[5, 6])],
+        {
+            5: ["crew:changes-requested"],
+            6: ["crew:changes-requested"],
+            9: ["crew:in-review"],
+        },
+    )
+    assert set_state(github, 5, "in-review") == [5, 6, 9]
+    assert sorted(label_calls(fake)) == [
+        ("DELETE", 5, "crew:changes-requested"),
+        ("DELETE", 6, "crew:changes-requested"),
+        ("POST", 5, "crew:in-review"),
+        ("POST", 6, "crew:in-review"),
+    ]
+
+
 def test_set_state_keeps_owner_decision():
     github, fake = gh_with([], {3: ["crew:rough", "crew:owner-decision"]})
     assert set_state(github, 3, "ready") == [3]
@@ -118,7 +137,9 @@ def test_label_problems_kinds():
         LabelProblem(2, "closed issue still has crew:in-review", ("crew:in-review",)),
         LabelProblem(8, "merged PR still has crew:owner-accept", ("crew:owner-accept",)),
         LabelProblem(1, "has more than one state label: crew:ready, crew:in-progress", ()),
-        LabelProblem(9, "PR #9 has crew:owner-accept, its issue #5 has crew:in-review", ()),
+        LabelProblem(
+            9, "PR #9 has crew:owner-accept, its issue #5 has crew:in-review", (), "owner-accept"
+        ),
     ]
     assert FLOW[0] == "crew:rough"
 
@@ -157,6 +178,42 @@ def test_labels_check_fix_cli(monkeypatch, capsys):
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     assert main(["labels", "check", "--fix", "--root", str(PROJECT)]) == 1
     assert fake.removed == []
+
+
+def test_label_problems_issue_out_of_step_with_its_only_pr_is_fixable():
+    problems = label_problems(
+        open_issues=[
+            issue(5, labels=["crew:in-review"]),
+            issue(6, labels=["crew:changes-requested"]),
+            issue(7, labels=["crew:ready"]),
+        ],
+        closed_issues=[],
+        open_prs=[
+            pr(9, labels=["crew:in-review"], closes=[5, 6]),
+            pr(10, labels=["crew:in-review"], closes=[7]),
+            pr(11, labels=["crew:changes-requested"], closes=[7]),
+        ],
+        merged_prs=[],
+    )
+    assert [(p.number, p.fix_state) for p in problems] == [(9, "in-review"), (10, None), (11, None)]
+
+
+def test_labels_check_fix_moves_issue_to_its_prs_state(monkeypatch, capsys):
+    fake = FakeLabelsGitHub(
+        open_issues=[issue(5, labels=["crew:in-review"]), issue(6, labels=["crew:rough"])],
+        open_prs=[pr(9, labels=["crew:in-review"], closes=[5, 6])],
+    )
+    moved = []
+    monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
+    monkeypatch.setattr(
+        "crew.labels.set_state", lambda github, n, state: moved.append((n, state)) or [5, 6, 9]
+    )
+    assert main(["labels", "check", "--fix", "--root", str(PROJECT)]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "#9: PR #9 has crew:in-review, its issue #6 has crew:rough",
+        "fixed #9: #5, #6, #9 now in-review",
+    ]
+    assert moved == [(9, "in-review")]
 
 
 def test_labels_check_clean(monkeypatch, capsys):

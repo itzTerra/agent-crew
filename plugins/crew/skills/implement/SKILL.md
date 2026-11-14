@@ -64,8 +64,8 @@ Before asking for review, squash your own fixups per the project's `merge_rules`
 `git push --force-with-lease`. Don't wait for the owner's go-ahead for this.
 
 Label the PR with the unit's kind (`crew:owner-facing` or `crew:internal`), then request review
-with `crew labels set-state N in-review`: it sets `crew:in-review` on the issue and the PR
-together. If it reports that the PR doesn't close `#N`, fix the body with `gh pr edit` and run
+with `crew labels set-state N in-review`: it sets `crew:in-review` on the issue, the PR and
+every other issue the PR closes together. If it reports that the PR doesn't close `#N`, fix the body with `gh pr edit` and run
 it again. A unit in review holds its owned paths but no longer uses an agent slot in
 `crew next`.
 
