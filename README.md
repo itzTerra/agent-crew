@@ -145,8 +145,8 @@ permissions:
 | `crew inbox [--peek]` | What waits on the owner, what merged without them, merged pitches no unit links yet (bets to split), and dependency cycles; marks the inbox as seen unless `--peek` |
 | `crew next [--rough]` | The ready units in the order workers should take them, why each other ready unit is left out, and dependency cycles; with `--rough`, the rough units in refinement order |
 | `crew check-owns PR [--range REV_RANGE]` | Check that a PR changes only the paths its unit owns (plus its spec delta's target); with `--range`, the paths come from `git diff --name-only` |
-| `crew labels set-state N STATE` | Move an issue and its open PRs (or a PR and its issues) to one state: `rough`, `ready`, `in-progress`, `in-review`, `changes-requested`, `owner-accept`, `owner-stuck`, or `done` to clear them |
-| `crew labels check [--fix]` | State labels that disagree; `--fix` removes those left on closed issues and merged PRs |
+| `crew labels set-state N STATE` | Move an issue and its open PRs (or a PR and its issues), with every issue those PRs close, to one state: `rough`, `ready`, `in-progress`, `in-review`, `changes-requested`, `owner-accept`, `owner-stuck`, or `done` to clear them |
+| `crew labels check [--fix]` | State labels that disagree; `--fix` removes those left on closed issues and merged PRs, and moves an issue out of step with its only open PR to the PR's state |
 | `crew agent ROLE [PROMPT] [--model M] [--auto] [--check]` | Start an agent session under the agents' login (see below) |
 | `crew usage` | The latest weekly and 5-hour usage reading and its age |
 | `crew budget [--week N \| --reset]` | The budget cap in force; raise it for this week, or go back to the default |

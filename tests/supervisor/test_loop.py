@@ -691,6 +691,25 @@ def test_failed_label_move_is_retried_next_tick(root, tmp_path):
     assert names == {5: {"crew:changes-requested"}, 9: {"crew:changes-requested"}}
 
 
+def test_issue_out_of_step_with_its_pr_is_repaired_instead_of_waiting(root, tmp_path):
+    # A PR closing #5 and #6 moved to in-review with #5 only: the run moves #6 along.
+    github = FakeGitHub(
+        [
+            issue(5, labels=["crew:in-review"], owns=["a/"]),
+            issue(6, labels=["crew:changes-requested"], owns=["b/"]),
+        ],
+        [pr(9, 5, ["crew:in-review"])],
+    )
+    github.prs[9]["closingIssuesReferences"].append({"number": 6})
+    supervisor = make(root, tmp_path, github)
+    supervisor.tick()
+    names = {n: {label["name"] for label in github._item(n)["labels"]} for n in (5, 6, 9)}
+    assert names == {5: {"crew:in-review"}, 6: {"crew:in-review"}, 9: {"crew:in-review"}}
+    text = "\n".join(supervisor.log)
+    assert "#9: moved its issues to in-review (label drift)" in text
+    assert "label problem" not in text
+
+
 def test_stuck_report_for_pr_work_goes_on_the_issue(root, tmp_path):
     # M5: the spec says the stuck agent is reported on the issue.
     github = FakeGitHub(

@@ -139,7 +139,9 @@ def test_take_snapshot_calls():
     assert [c[1:4] for c in views] == [["pr", "view", "9"], ["issue", "view", "2"]]
     assert PR_DETAIL_FIELDS in views[0]
     assert snapshot.problems == [
-        type(snapshot.problems[0])(9, "PR #9 has crew:in-review, its issue #1 has crew:ready", ())
+        type(snapshot.problems[0])(
+            9, "PR #9 has crew:in-review, its issue #1 has crew:ready", (), "in-review"
+        )
     ]
 
 

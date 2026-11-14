@@ -57,7 +57,9 @@ def test_label_problems_idea_with_work_or_proposal_label():
             issue(4, labels=["crew:idea", "crew:rough"]),
             issue(6, labels=["crew:idea", "crew:owner-proposal"]),
         ],
-        closed_issues=[], open_prs=[], merged_prs=[],
+        closed_issues=[],
+        open_prs=[],
+        merged_prs=[],
     )
     assert problems == [
         LabelProblem(4, "parked idea also has crew:rough", ()),
@@ -119,8 +121,11 @@ def test_parked_ideas_counts_open_ideas_only():
 def test_inbox_cli_parked_ideas_line(tmp_path, monkeypatch, capsys):
     root = tmp_path / "project"
     shutil.copytree(PROJECT, root)
-    fake = FakeGitHub(issues=[issue(1, labels=["crew:idea"]), issue(2, labels=["crew:idea"])],
-                      open_prs=[], merged_prs=[])
+    fake = FakeGitHub(
+        issues=[issue(1, labels=["crew:idea"]), issue(2, labels=["crew:idea"])],
+        open_prs=[],
+        merged_prs=[],
+    )
     monkeypatch.setattr("crew.cli.make_github", lambda repo: fake)
     assert main(["inbox", "--root", str(root), "--peek"]) == 0
     out = capsys.readouterr().out
@@ -166,8 +171,14 @@ Add `"crew:idea"` to the phrases in `test_agent_brief_covers_shared_rules`, and:
 @pytest.mark.parametrize("name", AGENTS)
 def test_discovered_work_parks_ideas(name):
     text = (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")
-    rule = text[text.index("**Discovered work:**"):].split("\n- ")[0]
-    for phrase in ("crew:rough", "crew:owner-proposal", "crew:idea", "agreed behavior", "current bet"):
+    rule = text[text.index("**Discovered work:**") :].split("\n- ")[0]
+    for phrase in (
+        "crew:rough",
+        "crew:owner-proposal",
+        "crew:idea",
+        "agreed behavior",
+        "current bet",
+    ):
         assert phrase in rule, f"{name}.md discovered-work rule lacks {phrase!r}"
 ```
 
