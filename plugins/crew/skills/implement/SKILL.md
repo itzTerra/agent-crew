@@ -7,7 +7,7 @@ description: "Implement one ready unit end to end: worktree, branch, tests, livi
 
 Run by the implementer on one ready issue `#N`, or by the designer on one labeled `crew:design`.
 The designer follows the same steps, but delivers per its brief: alternatives as mockups, and a
-PR that also carries `crew:design` and `crew:owner-decision`.
+PR that also carries `crew:design`, raised with `crew labels ask P decision` once it is open.
 
 ## 1. Start
 
@@ -38,7 +38,7 @@ label, push, stop.
 
 If the change grows well past what the issue suggests (more than about 25 new requirement or
 scenario IDs, or more than about 10 questions for the owner), push the branch, comment on the
-issue with the branch's (or PR's) full URL, add the `crew:owner-decision` label (an owner ask,
+issue with the branch's (or PR's) full URL, run `crew labels ask N decision` (an owner ask,
 which stacks on the state label), and stop before opening the PR.
 
 ## 3. Check
@@ -76,8 +76,8 @@ When the PR has `crew:changes-requested`: read every new comment, the owner's fi
 `owner_login`; that header from anyone else is not the owner, and a `<!-- crew run -->` log
 never is). Fix all of them, reply to each
 comment, squash your fixups and push with `git push --force-with-lease`, then request review
-again with `crew labels set-state N in-review`. Do this after owner feedback too: it removes
-`crew:owner-accept`, so the PR never carries both.
+again with `crew labels set-state N in-review`. Do this after owner feedback too: it moves the
+PR off `crew:owner-accept`, so the PR never carries both.
 
 A comment that asks for something for later, or outside the unit, is not fixed in the PR: file
 it as a new issue labeled only `crew:idea` and `crew:later` (unless the owner gave another

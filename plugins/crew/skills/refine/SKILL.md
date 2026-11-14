@@ -55,5 +55,6 @@ issue, with its full URL, and propose a split into smaller units.
 
 ## Questions only the owner can answer
 
-Don't guess. Post one comment with the question, the options and your recommendation, add
-`crew:owner-decision`, and move on to the next unit. The unit stays rough until it is answered.
+Don't guess. Post one comment with the question, the options and your recommendation, run
+`crew labels ask N decision`, and move on to the next unit. The unit stays rough until it is
+answered.

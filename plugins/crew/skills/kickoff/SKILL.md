@@ -40,8 +40,9 @@ Pri is `Must`, `Should` or `Later`. Requirements no living spec will cite (becau
 process covers them) get a `[covered: <how>]` marker.
 
 Run `crew check-docs` until it reports no errors; `XREF-UNCITED` warnings are expected while
-there are no living specs yet. Then commit it on a branch and open a PR labeled
-`crew:owner-accept` and `crew:owner-facing`.
+there are no living specs yet. Then commit it on a branch, open a PR labeled
+`crew:owner-facing`, and run `crew labels set-state P owner-accept` on it, which
+also assigns the owner.
 
 Label the baseline PR `crew:must`. Then file one `crew:idea` issue per epic, each naming its
 epic and linking the baseline PR: an epic in the MVP cut gets `crew:must`, an epic outside it
@@ -53,8 +54,8 @@ changes in the baseline PR's review, adjust and relabel these ideas while relayi
 File the first owner decisions as issues labeled `crew:rough`, `crew:owner-facing` and
 `crew:must` (they block the MVP work), each for
 the architect to prepare as a decision document. They reach the owner's inbox only when the
-decision document's PR exists and is labeled `crew:owner-decision`, so the owner is never asked
-to decide before the options are written:
+decision document's PR exists and the architect has run `crew labels ask P decision` on it, so
+the owner is never asked to decide before the options are written:
 
 - the architecture and stack ADRs (languages, frameworks, storage, hosting);
 - the operations and checks setup (CI, Docker, test and lint tools);

@@ -134,17 +134,17 @@ Prompts switch from raw `gh` label edits to `crew labels ask/clear`.
 **Interfaces:**
 - Consumes: the CLI from Task 3.
 
-- [ ] **Step 1: Write failing tests** in `tests/test_plugin_files.py`:
+- [x] **Step 1: Write failing tests** in `tests/test_plugin_files.py`:
   - `test_owner_asks_go_through_crew` (parametrized over every agent and skill file): text contains no `add the \`crew:owner-decision\` label`, no `--add-label`/`--remove-label` naming `crew:owner-`; each file that mentions `crew:owner-decision` or `crew:owner-proposal` as something to set also contains `crew labels ask`.
   - `test_lead_links_every_item_in_every_message`: `lead.md` contains `at least once in every message` and `repeated lists`; `run/SKILL.md` contains `at least once in every message`.
-- [ ] **Step 2: Run** `uv run pytest tests/test_plugin_files.py -q` — expect FAIL.
-- [ ] **Step 3: Edit the prompts:**
+- [x] **Step 2: Run** `uv run pytest tests/test_plugin_files.py -q` — expect FAIL.
+- [x] **Step 3: Edit the prompts:**
   - "add the `crew:owner-decision` label" → "run `crew labels ask N decision`"; removing it (inbox "record a decision") → `crew labels clear N decision`.
   - Items filed already waiting on the owner (designer's and architect's PRs, `crew:owner-proposal` issues in "Discovered work", the lead's retrospective): create without the ask label, then `crew labels ask N decision|proposal`.
   - `lead.md` link rule becomes: "Whenever you open or mention a PR or issue to the owner, in the session or on GitHub, give its full URL (`https://github.com/<repo>/pull/N`) at least once in every message, including repeated lists and summaries; when one line names several items, link each."
   - `run/SKILL.md` "waiting on you" step: same "at least once in every message" wording for repeated reports.
-- [ ] **Step 4: Run** `uv run pytest -q` — expect PASS.
-- [ ] **Step 5: Commit** `feat(agents): raise owner asks with crew labels ask and link every item`
+- [x] **Step 4: Run** `uv run pytest -q` — expect PASS.
+- [x] **Step 5: Commit** `feat(agents): raise owner asks with crew labels ask and link every item`
 
 ### Task 6: Document assignees
 

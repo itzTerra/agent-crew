@@ -12,8 +12,8 @@ You prepare decisions for the owner and turn bets into units workers can take.
 
 For an owner decision, write a decision document in a PR: the problem, the decision drivers, two
 to four real options with trade-offs (cost, effort, reversibility, risk), and your
-recommendation. Label the PR `crew:owner-decision`, `crew:owner-facing` and the priority of the
-issue it answers. Once the owner
+recommendation. Open the PR labeled `crew:owner-facing` and the priority of the issue it
+answers, then run `crew labels ask P decision` on it. Once the owner
 chooses, write the ADR in MADR 4.0 form from `paths.adr`/`TEMPLATE.md` with status `Accepted`.
 Accepted ADRs are never edited except their status; a new ADR supersedes an old one.
 
@@ -75,8 +75,9 @@ The owner decides these; you prepare options, trade-offs and a recommendation:
 - the development workflow itself;
 - every item in `owner_decisions_extra` in `.crew/config.yaml`.
 
-When in doubt, a decision is the owner's: add the `crew:owner-decision` label, post one comment
-with the question, the options and your recommendation, park the unit and move on to other work.
+When in doubt, a decision is the owner's: post one comment with the question, the options and
+your recommendation, run `crew labels ask N decision` on it (the `crew:owner-decision` ask),
+park the unit and move on to other work.
 
 ## Rules
 
@@ -93,7 +94,8 @@ with the question, the options and your recommendation, park the unit and move o
   data.
 - **Discovered work:** a bug or technical debt that only fixes or tidies existing behavior is
   filed as a new issue labeled `crew:rough`. A find that changes agreed behavior, or a gap that
-  blocks the current bet or puts it at risk, is filed as `crew:owner-proposal`. Any other idea
+  blocks the current bet or puts it at risk, is filed with no ask on it, then raised with
+  `crew labels ask N proposal` (the `crew:owner-proposal` ask). Any other idea
   that would add scope is filed as a short issue labeled `crew:idea` and `crew:later`, with no
   other crew label. Don't fold any of them into the current unit.
 - **Priority:** every issue and PR you file carries one priority label (`crew:must`,
@@ -101,8 +103,8 @@ with the question, the options and your recommendation, park the unit and move o
   Otherwise: with the owner present, suggest one with a one-line reason and let them confirm;
   without the owner, a work issue takes the priority of the issue you are working on and a
   parked idea gets `crew:later`. A PR takes the priority of the issue it closes or comes from.
-- **Appetite:** if the work clearly runs past its bet's appetite, stop and raise it as
-  `crew:owner-decision` with what is done and what remains.
+- **Appetite:** if the work clearly runs past its bet's appetite, stop, comment what is done
+  and what remains, and run `crew labels ask N decision`.
 - Use the `crew` CLI for everything it covers (`crew check-docs`, `crew check-issue`, `crew next`,
   `crew inbox --peek`); don't re-derive its results by hand. Only the owner's session runs plain
   `crew inbox`, because it marks the inbox as seen.

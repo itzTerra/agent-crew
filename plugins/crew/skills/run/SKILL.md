@@ -32,9 +32,10 @@ or the weekly budget cap, whichever comes first.
    1800000, so each line it prints reaches you while you and the owner keep talking. When the
    Monitor expires (you get a notice), re-arm with plain `crew watch`: it resumes where the last
    one stopped. Without Monitor, run it in the background: then only the end arrives.
-7. **Each `waiting on you:` line.** Tell the owner the item, its full URL and what they are asked
-   to do, in the per-ask wording of the `crew:inbox` skill. Offer to act on it now, with the
-   owner's say-so, or to leave it for the end. Don't run `crew inbox` for this.
+7. **Each `waiting on you:` line.** Tell the owner the item, its full URL (at least once in
+   every message, repeated reports and summaries included) and what they are asked to do, in
+   the per-ask wording of the `crew:inbox` skill. Offer to act on it now, with the owner's
+   say-so, or to leave it for the end. Don't run `crew inbox` for this.
 8. **The end lines.** Say why the run ended and list Started, Finished, Stuck and Paused with
    their URLs. Then:
    - if `crew watch` exited 2, or the reason starts with `error:`, leave the pane open and tell

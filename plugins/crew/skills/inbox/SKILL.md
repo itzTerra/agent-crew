@@ -22,8 +22,9 @@ Run by the lead, with the owner.
 3. Offer to act on each item, one at a time:
    - open the PR or issue (`gh pr view N --web`, `gh issue view N --web`);
    - relay the owner's feedback with the `crew:relay` skill;
-   - record a decision: post the owner's words quoted as theirs, remove `crew:owner-decision`
-     and set the label the unit needs next (usually `crew:rough` for refinement).
+   - record a decision: post the owner's words quoted as theirs, run
+     `crew labels clear N decision` and set the state the unit needs next (usually
+     `crew labels set-state N rough` for refinement).
 4. Show the "Merged without you" list and ask whether any of them should be returned as a new
    unit. If so, file it as `crew:rough` with a link to the merged PR and the merged unit's
    priority label (`crew:must`, `crew:should` or `crew:later`).

@@ -212,3 +212,54 @@ def test_no_do_first_left():
 @pytest.mark.parametrize("name", ["kickoff", "ideas", "pitch", "relay", "implement", "inbox"])
 def test_filing_skills_name_a_priority(name):
     assert "crew:must" in skill_text(name) or "crew:later" in skill_text(name)
+
+
+PLUGIN_TEXTS = sorted(
+    [*(PLUGIN / "agents").glob("*.md"), *(PLUGIN / "skills").glob("*/SKILL.md")],
+    key=lambda path: path.as_posix(),
+)
+# Wording that sets or removes an owner ask by hand instead of through `crew labels ask/clear`.
+RAW_ASK = re.compile(
+    r"(?:\badd(?:s|ing)?|\bremov(?:e|es|ing)|(?<!crew )\blabel(?:s|ed)?"
+    r"|filed as|raise it as|carries)"
+    r"\b[^.;:]{0,60}?`crew:owner-(?:accept|decision|stuck|proposal)`",
+    re.IGNORECASE,
+)
+RAISES_ASKS = [
+    "agents/lead.md", "agents/architect.md", "agents/designer.md", "agents/implementer.md",
+    "agents/reviewer.md", "skills/implement/SKILL.md", "skills/refine/SKILL.md",
+    "skills/inbox/SKILL.md", "skills/kickoff/SKILL.md",
+]  # fmt: skip
+# Open owner-accept PRs without the label, then move them there, so the owner is assigned.
+ACCEPT_THROUGH_SET_STATE = ["skills/pitch/SKILL.md", "skills/kickoff/SKILL.md"]
+
+
+@pytest.mark.parametrize("path", PLUGIN_TEXTS, ids=lambda p: p.relative_to(PLUGIN).as_posix())
+def test_owner_asks_go_through_crew(path):
+    text = " ".join(path.read_text(encoding="utf-8").split())
+    assert not RAW_ASK.findall(text), RAW_ASK.findall(text)
+    for flag in ("--add-label", "--remove-label"):
+        assert not re.search(rf"{flag}[ =]\S*crew:owner-", text)
+    if path.relative_to(PLUGIN).as_posix() in RAISES_ASKS:
+        assert "crew labels ask" in text or "crew labels clear" in text
+
+
+@pytest.mark.parametrize("rel", ACCEPT_THROUGH_SET_STATE)
+def test_owner_accept_prs_go_through_set_state(rel):
+    text = " ".join((PLUGIN / rel).read_text(encoding="utf-8").split())
+    assert "crew labels set-state P owner-accept" in text
+
+
+def test_owner_asks_raised_and_cleared_in_the_right_places():
+    inbox = skill_text("inbox")
+    assert "crew labels clear N decision" in inbox
+    for name in AGENTS:
+        text = (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")
+        assert "crew labels ask N decision" in text and "crew labels ask N proposal" in text
+
+
+def test_lead_links_every_item_in_every_message():
+    lead = " ".join((PLUGIN / "agents" / "lead.md").read_text(encoding="utf-8").split())
+    assert "at least once in every message" in lead and "repeated lists" in lead
+    assert "link each" in lead
+    assert "at least once in every message" in " ".join(skill_text("run").split())
