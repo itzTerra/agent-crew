@@ -112,7 +112,7 @@ git commit -m "feat(graph): mark startable skips and order rough blockers first"
 - Consumes: `Skipped.startable`, `blockers(units)`, `rough_order(units)` from Task 1.
 - Produces: no new names. Behavior: `startable = sum(1 for s in skipped if s.startable)`. With no live refine agent: if `startable < config.refine_ahead`, refine the first unit of `rough_order` that is neither occupied nor has a label problem; otherwise do the same over the blockers only (rough_order filtered to `blockers(...)`), and refine nothing if none qualifies.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/supervisor/test_planner.py`:
 
@@ -176,21 +176,21 @@ def test_occupied_blocker_leaves_no_other_refine():
 
 Extend `test_refine_ahead_keeps_one_refiner`: add `issue(4, deps=[2], labels=["crew:ready"], owns=["d/"])` to its issues (so #2 becomes a blocker), keep the existing assertions, but the first plan now refines #2 (the blocker comes first): `assert kinds(result) == [("implement", 3), ("refine", 2)]` and the prompt names `#2`. The `busy` plan with a live refine agent still gives `[("implement", 3)]`.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/supervisor/test_planner.py -v`
 Expected: FAIL: `test_stall_refines_the_blocker` plans no refine; `test_blocker_refined_even_with_enough_ready` misses `refine #5`.
 
-- [ ] **Step 3: Implement the trigger in `plan()`**
+- [x] **Step 3: Implement the trigger in `plan()`**
 
 Replace the `ready_left` block (`planner.py:241-249`) with the behavior in this task's Interfaces block. Drop the `READY` import if it becomes unused. Update `plan()`'s docstring with one sentence: a refine starts while fewer than `refine_ahead` ready units can start, or for a rough unit that blocks ready work.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/supervisor -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/supervisor/planner.py tests/supervisor/test_planner.py docs/superpowers/plans/2026-11-16-refine-stall.md

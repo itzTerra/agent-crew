@@ -218,15 +218,73 @@ def test_refine_ahead_keeps_one_refiner():
         issue(1, labels=["crew:rough"], owns=["a/"]),
         issue(2, labels=["crew:rough"], owns=["b/"]),
         issue(3, labels=["crew:ready"], owns=["c/"]),
+        issue(4, deps=[2], labels=["crew:ready"], owns=["d/"]),
     ]
     result = make_plan(snap(issues), free_slots=3)
-    assert kinds(result) == [("implement", 3), ("refine", 1)]
+    assert kinds(result) == [("implement", 3), ("refine", 2)]
     assert result.actions[1].prompt == (
-        "Use crew:refine on issue #1 only (https://github.com/example/app/issues/1)."
+        "Use crew:refine on issue #2 only (https://github.com/example/app/issues/2)."
     )
     assert result.actions[1].branch is None
     busy = make_plan(snap(issues), live=[Live("refine", 2, None)], free_slots=3)
     assert kinds(busy) == [("implement", 3)]
+
+
+def test_stall_refines_the_blocker():
+    issues = [
+        issue(140, labels=["crew:rough"], owns=["a/"]),
+        issue(132, deps=[140], labels=["crew:ready"], owns=["b/"]),
+        issue(48, deps=[132], labels=["crew:ready"], owns=["c/"]),
+        issue(58, labels=["crew:rough", "crew:must"], owns=["d/"]),
+        issue(59, labels=["crew:rough", "crew:must"], owns=["e/"]),
+    ]
+    result = make_plan(snap(issues), free_slots=3)
+    assert kinds(result) == [("refine", 140)]
+    assert result.idle is False
+
+
+def test_blocker_refined_even_with_enough_ready():
+    issues = [
+        issue(1, labels=["crew:ready"], owns=["a/"]),
+        issue(2, labels=["crew:ready"], owns=["b/"]),
+        issue(3, labels=["crew:ready"], owns=["c/"]),
+        issue(7, labels=["crew:ready"], owns=["g/"]),
+        issue(4, deps=[5], labels=["crew:ready"], owns=["d/"]),
+        issue(5, labels=["crew:rough"], owns=["e/"]),
+        issue(6, labels=["crew:rough", "crew:must"], owns=["f/"]),
+    ]
+    # Two picks fill the slots; #3 and #7 can still start, so the count alone plans no refine.
+    result = make_plan(snap(issues), free_slots=2)
+    assert kinds(result) == [("implement", 1), ("implement", 2)]
+    assert "no free agent slot for refine #5" in result.waiting
+
+
+def test_blocked_ready_units_dont_count():
+    issues = [
+        issue(1, labels=["crew:in-review"], owns=["a/"]),
+        issue(2, deps=[1], labels=["crew:ready"], owns=["b/"]),
+        issue(3, deps=[1], labels=["crew:ready"], owns=["c/"]),
+        issue(4, labels=["crew:rough"], owns=["d/"]),
+    ]
+    prs = [pr(9, 1, ["crew:in-review"], checks="pending")]
+    result = make_plan(snap(issues, prs), free_slots=2)
+    assert kinds(result) == [("refine", 4)]
+
+
+def test_occupied_blocker_leaves_no_other_refine():
+    issues = [
+        issue(1, labels=["crew:ready"], owns=["a/"]),
+        issue(2, labels=["crew:ready"], owns=["b/"]),
+        issue(3, labels=["crew:ready"], owns=["c/"]),
+        issue(7, labels=["crew:ready"], owns=["g/"]),
+        issue(4, deps=[5], labels=["crew:ready"], owns=["d/"]),
+        issue(5, labels=["crew:rough"], owns=["e/"]),
+        issue(6, labels=["crew:rough"], owns=["f/"]),
+    ]
+    # One live agent plus one slot: #1 and #2 are picked, #3 and #7 can still start.
+    result = make_plan(snap(issues), live=[Live("followup", 5, None)], free_slots=1)
+    assert [a for a in result.actions if a.kind == "refine"] == []
+    assert not any("refine" in line for line in result.waiting)
 
 
 def test_parked_idea_is_never_picked():

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from crew.config import Config
-from crew.graph import READY, RUNNING, ready_report, rough_order
+from crew.graph import RUNNING, blockers, ready_report, rough_order
 from crew.labels import FLOW
 from crew.supervisor.snapshot import Snapshot, checks_state, failed_checks, owner_activity
 
@@ -101,8 +101,10 @@ def plan(
     implement, split and refine actions, cut at ``free_slots``. A split turns one merged pitch
     PR that no unit links yet into units, one bet at a time. Each target gets at most one action;
     targets with a live agent or a label problem are skipped. An action whose estimate exceeds
-    ``minutes_left`` is dropped. Units or PRs labeled ``crew:design`` are built (implement,
-    resume, fix) and followed up by the designer instead of the implementer and architect.
+    ``minutes_left`` is dropped. One refine runs at a time: while fewer than ``refine_ahead``
+    ready units can start, or for a rough unit that blocks ready work. Units or PRs labeled
+    ``crew:design`` are built (implement, resume, fix) and followed up by the designer instead
+    of the implementer and architect.
     """
     result = Plan()
     occupied = {n for agent in live for n in (agent.number, agent.issue) if n is not None}
@@ -238,10 +240,14 @@ def plan(
             candidates.append(Action("split", number, None, "architect", None, prompt, None))
             break
 
-    ready_left = sum(1 for u in snapshot.units.values() if READY in u.labels) - len(picks)
-    refining = any(agent.kind == "refine" for agent in live)
-    if ready_left < config.refine_ahead and not refining:
-        for number in rough_order(snapshot.units):
+    if not any(agent.kind == "refine" for agent in live):
+        order = rough_order(snapshot.units)
+        startable = sum(1 for item in skipped if item.startable)
+        if startable >= config.refine_ahead:
+            # Enough ready work can start: refine only what blocks other ready work.
+            found = blockers(snapshot.units)
+            order = [number for number in order if number in found]
+        for number in order:
             if number in occupied or number in problems:
                 continue
             prompt = f"Use crew:refine on issue #{number} only ({snapshot.units[number].url})."
