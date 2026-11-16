@@ -36,6 +36,7 @@ class Skipped:
 
     number: int
     reason: str
+    startable: bool = False  # left out only for capacity (WIP limit, owns overlap)
 
 
 def label_names(item: dict) -> set[str]:
@@ -197,21 +198,36 @@ def priority_key(rank: int, blocks: int, created_at: str, number: int) -> tuple:
     return (rank, -blocks, created_at or "~", number)
 
 
+def blockers(units: dict[int, Unit]) -> set[int]:
+    """Rough units that a ready unit (not a parked idea) depends on, directly or indirectly."""
+    return {
+        number
+        for number, dependents in _all_dependents(units).items()
+        if ROUGH in units[number].labels
+        and any(READY in units[d].labels and IDEA not in units[d].labels for d in dependents)
+    }
+
+
 def rough_order(units: dict[int, Unit]) -> list[int]:
     """Rough units in the order to refine them, the same order workers will pick them.
 
-    Units waiting on the owner and parked ideas are left out. Open dependencies don't hold a
-    unit back: refining ahead of the workers is the point.
+    Blockers of ready units come first, then the rest. Units waiting on the owner and parked
+    ideas are left out. Open dependencies don't hold a unit back: refining ahead of the workers
+    is the point.
     """
     counts = dependents_count(units)
     ranks = effective_ranks(units)
+    first = blockers(units)
     rough = [
         u
         for u in units.values()
         if ROUGH in u.labels and IDEA not in u.labels and not u.labels & WAITING_ON_OWNER
     ]
     rough.sort(
-        key=lambda u: priority_key(ranks[u.number], counts[u.number], u.created_at, u.number)
+        key=lambda u: (
+            u.number not in first,
+            *priority_key(ranks[u.number], counts[u.number], u.created_at, u.number),
+        )
     )
     return [u.number for u in rough]
 
@@ -259,11 +275,11 @@ def ready_report(
     for unit in eligible:
         overlap = next((n for n, owns in taken if owns_overlap(unit.owns, owns)), None)
         if overlap is not None:
-            skipped.append(Skipped(unit.number, f"owns overlap with #{overlap}"))
+            skipped.append(Skipped(unit.number, f"owns overlap with #{overlap}", True))
         elif len(chosen) >= max_agents - len(running):
             used = len(running) + len(chosen)
             skipped.append(
-                Skipped(unit.number, f"WIP limit reached ({used} of {max_agents} agents)")
+                Skipped(unit.number, f"WIP limit reached ({used} of {max_agents} agents)", True)
             )
         else:
             chosen.append(unit.number)

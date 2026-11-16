@@ -1,6 +1,7 @@
 from crew.graph import (
     Skipped,
     Unit,
+    blockers,
     build_units,
     dependents_count,
     effective_ranks,
@@ -154,8 +155,8 @@ def test_ready_report_reasons():
         Skipped(4, "in a dependency cycle"),
         Skipped(5, "in a dependency cycle"),
         Skipped(6, "depends on open #20, #21"),
-        Skipped(7, "owns overlap with #1"),
-        Skipped(9, "WIP limit reached (2 of 2 agents)"),
+        Skipped(7, "owns overlap with #1", startable=True),
+        Skipped(9, "WIP limit reached (2 of 2 agents)", startable=True),
     ]
     assert next_ready(units, running=[1], max_agents=2, busy=[2]) == picks
 
@@ -172,3 +173,30 @@ def test_mislabeled_idea_is_never_picked_or_refined():
     assert picks == []
     assert skipped == [Skipped(1, "is a parked idea (crew:idea)")]
     assert rough_order(units) == [3]
+
+
+def test_blockers_direct_and_indirect():
+    units = units_of(
+        issue(140, labels=["crew:rough"], owns=["a/"]),
+        issue(132, deps=[140], labels=["crew:ready"], owns=["b/"]),
+        issue(48, deps=[132], labels=["crew:ready"], owns=["c/"]),
+        issue(58, labels=["crew:rough"], owns=["d/"]),
+        issue(60, deps=[61], labels=["crew:rough"], owns=["e/"]),
+        issue(61, labels=["crew:rough"], owns=["f/"]),
+        issue(70, labels=["crew:rough"], owns=["g/"]),
+        issue(71, deps=[70], labels=["crew:idea", "crew:ready"], owns=["h/"]),
+    )
+    assert blockers(units) == {140}
+
+
+def test_rough_order_puts_blockers_first():
+    units = units_of(
+        issue(140, labels=["crew:rough"], owns=["a/"], created="2026-03-01T00:00:00Z"),
+        issue(132, deps=[140], labels=["crew:ready"], owns=["b/"]),
+        issue(48, deps=[132], labels=["crew:ready"], owns=["c/"]),
+        issue(58, labels=["crew:rough", "crew:must"], owns=["d/"]),
+        issue(59, labels=["crew:rough", "crew:must"], owns=["e/"]),
+        issue(90, labels=["crew:rough", "crew:owner-decision"], owns=["f/"]),
+        issue(91, deps=[90], labels=["crew:ready"], owns=["g/"]),
+    )
+    assert rough_order(units) == [140, 58, 59]

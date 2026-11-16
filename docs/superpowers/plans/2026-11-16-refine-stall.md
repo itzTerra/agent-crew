@@ -38,7 +38,7 @@
 - Produces: `blockers(units: dict[int, Unit]) -> set[int]`: the `crew:rough` units that some `crew:ready` unit without `crew:idea` depends on, directly or indirectly (via `_all_dependents`).
 - Produces: `rough_order(units)` lists blockers first, then the rest; each group in today's `priority_key` order; same exclusions as today.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/test_graph.py`, update `test_ready_report_reasons` so the two capacity skips carry the flag:
 
@@ -79,21 +79,21 @@ def test_rough_order_puts_blockers_first():
 
 (Import `blockers` from `crew.graph` at the top of the file.)
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_graph.py -v`
 Expected: FAIL: `ImportError` for `blockers` (and the `startable` keyword).
 
-- [ ] **Step 3: Implement in `src/crew/graph.py`**
+- [x] **Step 3: Implement in `src/crew/graph.py`**
 
 Add `startable: bool = False` to `Skipped` (keep it `frozen`), pass `startable=True` at the two capacity skips in `ready_report`, add `blockers`, and prefix `rough_order`'s sort key with `u.number not in found` (where `found = blockers(units)`, computed once). Update the `rough_order` docstring: blockers of ready units come first.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_graph.py tests/test_minors.py -v`
 Expected: PASS (`test_rough_order` in `test_minors.py` still gives `[3, 1, 2, 4]`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/graph.py tests/test_graph.py docs/superpowers/plans/2026-11-16-refine-stall.md
