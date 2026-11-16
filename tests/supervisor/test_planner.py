@@ -3,7 +3,16 @@ from pathlib import Path
 from crew.config import load_config
 from crew.graph import build_units
 from crew.labels import LabelProblem
-from crew.supervisor.planner import Action, Housekeeping, Live, plan, slug, unit_branch
+from crew.supervisor.planner import (
+    OWNER_IDLE,
+    Action,
+    Housekeeping,
+    Live,
+    idle_reason,
+    plan,
+    slug,
+    unit_branch,
+)
 from crew.supervisor.snapshot import OwnerActivity, Snapshot
 from tests.test_graph import issue
 
@@ -401,3 +410,47 @@ def test_one_split_at_a_time():
     snapshot.unsplit = {27: bet(), 30: bet(30, "0002")}
     result = make_plan(snapshot, live=[Live("split", 27, None)])
     assert kinds(result) == []
+
+
+def test_idle_reason_names_the_stall():
+    issues = [
+        issue(140, labels=["crew:idea"], owns=["a/"]),
+        issue(132, deps=[140], labels=["crew:ready"], owns=["b/"]),
+        issue(48, deps=[132, 77], labels=["crew:ready"], owns=["c/"]),
+        issue(77, owns=["d/"]),
+        issue(4, deps=[5], labels=["crew:ready"], owns=["e/"]),
+        issue(5, deps=[4], labels=["crew:rough"], owns=["f/"]),
+    ]
+    assert idle_reason(snap(issues)) == (
+        "nothing can start: #4 is in a dependency cycle; "
+        "#48 depends on open #132, #77 (not a crew unit); "
+        "#132 depends on open #140 (parked idea)"
+    )
+
+
+def test_idle_reason_blames_owner_only_with_inbox():
+    waiting = [
+        issue(5, labels=["crew:rough", "crew:owner-decision"], owns=["a/"]),
+        issue(6, deps=[5], labels=["crew:ready"], owns=["b/"]),
+    ]
+    assert idle_reason(snap(waiting)) == OWNER_IDLE
+    assert idle_reason(snap([])) == "nothing to do"
+
+
+def test_idle_reason_names_units_stuck_without_open_dependencies():
+    issues = [
+        issue(1, labels=["crew:ready"], owns=["a/"]),
+        issue(2, labels=["crew:in-progress"], owns=["b/"]),
+        issue(3, labels=["crew:ready"], owns=["b/x/"]),
+        issue(4, labels=["crew:rough"], owns=["c/"]),
+    ]
+    problems = [
+        LabelProblem(1, "has more than one priority label: crew:must, crew:later", ()),
+        LabelProblem(4, "has more than one state label: x, y", ()),
+    ]
+    assert idle_reason(snap(issues, problems=problems)) == (
+        "nothing can start: "
+        "#1 has a label problem: has more than one priority label: crew:must, crew:later; "
+        "#3 owns overlap with #2; "
+        "#4 has a label problem: has more than one state label: x, y"
+    )

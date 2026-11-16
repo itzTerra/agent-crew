@@ -247,6 +247,17 @@ def test_ends_when_idle_and_no_agents(root, tmp_path):
     assert any("nothing to do" in line for line in supervisor.log)
 
 
+def test_ends_naming_the_stall_when_nothing_waits_on_owner(root, tmp_path):
+    github = FakeGitHub(
+        [
+            issue(140, labels=["crew:idea"], owns=["a/"]),
+            issue(132, deps=[140], labels=["crew:ready"], owns=["b/"]),
+        ]
+    )
+    supervisor = make(root, tmp_path, github)
+    assert supervisor.tick() == "nothing can start: #132 depends on open #140 (parked idea)"
+
+
 def test_github_errors_retried_then_fatal(root, tmp_path):
     from crew.github import GitHubError
 

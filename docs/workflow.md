@@ -273,7 +273,8 @@ The run stops at the end time or the budget cap, whichever comes first:
 - it doesn't start a unit it can't plausibly finish before the stop;
 - work in progress at the stop is committed and pushed, so nothing is lost, and the next run
   resumes it;
-- if nothing is ready (everything waits on the owner), the run ends early;
+- if nothing can start, the run ends early, saying whether everything waits on the owner or
+  naming the units that are stuck and on what;
 - it waits out session-limit resets and continues, so one evening start can span two overnight
   windows.
 

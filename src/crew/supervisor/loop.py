@@ -21,7 +21,7 @@ from crew.state import read_state
 from crew.supervisor import worktrees
 from crew.supervisor.events import append_event, new_run_id, start_log
 from crew.supervisor.herdr import Herdr, HerdrError
-from crew.supervisor.planner import Action, Kind, Live, Plan, plan
+from crew.supervisor.planner import Action, Kind, Live, Plan, idle_reason, plan
 from crew.supervisor.snapshot import MARKER, Snapshot, owner_activity, take_snapshot
 from crew.supervisor.trust import TrustError, trust_folder
 from crew.supervisor.until import CONTINUE, FIVE_HOUR_FULL, RESET_SLACK, WIND_DOWN
@@ -44,7 +44,6 @@ DECISION = "crew:owner-decision"
 PR_KINDS = frozenset({"merge", "fix", "review"})
 STOPPED = frozenset({"idle", "done", "blocked"})
 NOT_STARTED = frozenset({"unknown"})
-IDLE_END = "nothing to do: everything waits on the owner"
 END_TIME = "end time reached"
 INTERRUPTED = "stopped with Ctrl-C"
 WIND_DOWN_POLL = 10  # seconds between status checks while agents wind down
@@ -280,7 +279,7 @@ class Supervisor:
             self._apply(result, snapshot)
             self._write_run(alive=True)
         if result.idle and not self.agents:
-            return IDLE_END
+            return idle_reason(snapshot)
         return None
 
     def _report_inbox(self, snapshot: Snapshot) -> None:

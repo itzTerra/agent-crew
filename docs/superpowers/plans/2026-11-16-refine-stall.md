@@ -213,7 +213,7 @@ git commit -m "fix(run): refine what blocks ready work and count only startable 
   2. Else, for each `crew:ready` unit without `crew:idea` or an owner-ask label, by number: in a cycle → `#N is in a dependency cycle`; with open dependencies → `#N depends on open #D[ tag], #E[ tag]`. Tag of a dependency, first that applies: ` (in a cycle)`, ` (parked idea)`, ` (waits on the owner)`, ` (not a crew unit)` (no `FLOW` label). If any parts → `"nothing can start: " + "; ".join(parts)`.
   3. Else → `"nothing to do"`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/supervisor/test_planner.py` (import `idle_reason`, `OWNER_IDLE`):
 
@@ -257,21 +257,21 @@ def test_ends_naming_the_stall_when_nothing_waits_on_owner(root, tmp_path):
     assert supervisor.tick() == "nothing can start: #132 depends on open #140 (parked idea)"
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/supervisor/test_planner.py tests/supervisor/test_loop.py -v`
 Expected: FAIL: `ImportError` for `idle_reason`; the loop test gets the owner message.
 
-- [ ] **Step 3: Implement `idle_reason` and use it in the loop**
+- [x] **Step 3: Implement `idle_reason` and use it in the loop**
 
 Add `OWNER_IDLE` and `idle_reason` to `planner.py` per the Interfaces block (iterate ready units sorted by number). In `loop.py`, remove `IDLE_END` and return `idle_reason(snapshot)` where it was returned.
 
-- [ ] **Step 4: Run the whole suite and the linters**
+- [x] **Step 4: Run the whole suite and the linters**
 
 Run: `uv run pytest && uv run ruff check && uv run ruff format --check`
 Expected: all pass, no findings.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/crew/supervisor/planner.py src/crew/supervisor/loop.py tests/supervisor/test_planner.py tests/supervisor/test_loop.py docs/superpowers/plans/2026-11-16-refine-stall.md

@@ -130,7 +130,7 @@ permissions:
 | `owner_decisions_extra` | `[]` | Decisions reserved for the owner, beyond the standard list |
 | `merge_rules` | `""` | Merge rules (text or a file path) for the `crew:merge` skill |
 | `poll_seconds` | 120 | `crew run`: seconds between looks at GitHub (at least 30) |
-| `refine_ahead` | 2 | `crew run`: ready units to keep refined ahead of the workers |
+| `refine_ahead` | 2 | `crew run`: ready units that can start to keep refined ahead of the workers |
 | `stop_grace_minutes` | 15 | `crew run`: how long agents get to commit and push when the run ends |
 | `estimates` | see below | `crew run`: minutes per kind of action; a run doesn't start what it can't finish in time |
 
@@ -234,8 +234,8 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
   review PRs whose CI is green (Sonnet for internal units, Opus for owner-facing ones), follow up
   owner answers on `crew:owner-decision` items, resume units paused by an earlier run, implement
   ready units (the `crew next` order), split a merged pitch that no unit's `## Bet` links yet
-  into units (one at a time, by the architect), and refine rough units to keep `refine_ahead`
-  ready;
+  into units (one at a time, by the architect), and refine rough units (first those that ready
+  units depend on) to keep `refine_ahead` ready units that can start;
 - each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode,
   in a worktree under `.crew/worktrees/`. Claude Code asks to trust every new git root, and each
   worktree is one, so the run marks the worktree it just made as trusted in Claude Code's config

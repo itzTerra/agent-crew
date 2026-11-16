@@ -5,14 +5,26 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from crew.config import Config
-from crew.graph import RUNNING, blockers, ready_report, rough_order
-from crew.labels import FLOW
+from crew.graph import (
+    READY,
+    ROUGH,
+    RUNNING,
+    WAITING_ON_OWNER,
+    Unit,
+    blockers,
+    find_cycles,
+    ready_report,
+    rough_order,
+)
+from crew.inbox import owner_inbox
+from crew.labels import FLOW, IDEA
 from crew.supervisor.snapshot import Snapshot, checks_state, failed_checks, owner_activity
 
 Kind = Literal["merge", "fix", "review", "followup", "resume", "implement", "split", "refine"]
 DECISION = "crew:owner-decision"
 OWNER_FACING = "crew:owner-facing"
 DESIGN = "crew:design"
+OWNER_IDLE = "nothing to do: everything waits on the owner"
 SLUG_MAX = 40
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 # Kinds whose agent holds the unit's issue as running work.
@@ -210,12 +222,7 @@ def plan(
             candidates.append(Action("resume", number, None, role, None, prompt, branch))
 
     running = sorted({agent.issue or agent.number for agent in live if agent.kind in WORKING_KINDS})
-    with_pr = {ref["number"] for pr in prs for ref in pr.get("closingIssuesReferences") or []}
-    busy = sorted(
-        number
-        for number, unit in snapshot.units.items()
-        if number not in running and (number in with_pr or RUNNING in unit.labels)
-    )
+    busy = _busy(snapshot, running)
     picks, skipped = ready_report(snapshot.units, running, len(live) + free_slots, busy)
     result.waiting += [f"#{item.number}: {item.reason}" for item in skipped]
     for number in picks:
@@ -272,6 +279,69 @@ def plan(
         result.actions or result.housekeeping or pending_checks or waiting_on_capacity
     )
     return result
+
+
+def idle_reason(snapshot: Snapshot) -> str:
+    """Why a run with nothing to start and no live agents ends.
+
+    The owner is named only when the owner inbox holds something. Otherwise each ready unit
+    that can't start is listed with why: its open dependencies (tagged when a tag explains the
+    stall), a cycle, a label problem or an owns overlap; so is each rough unit with a label
+    problem.
+    """
+    units = snapshot.units
+    if owner_inbox(units, list(snapshot.prs.values())):
+        return OWNER_IDLE
+    in_cycle = {n for cycle in find_cycles(units) for n in cycle}
+    problems = {p.number: p.message for p in snapshot.problems}
+    _, skipped = ready_report(units, [], len(units), _busy(snapshot, []))
+    reasons = {item.number: item.reason for item in skipped}
+    parts = []
+    for number in sorted(units):
+        labels = units[number].labels
+        if IDEA in labels or labels & WAITING_ON_OWNER:
+            continue
+        if ROUGH in labels and number in problems:
+            parts.append(f"#{number} has a label problem: {problems[number]}")
+        if READY not in labels:
+            continue
+        if number in in_cycle:
+            parts.append(f"#{number} is in a dependency cycle")
+        elif deps := [dep for dep in units[number].depends_on if dep in units]:
+            named = ", ".join(f"#{dep}{_dependency_tag(units[dep], in_cycle)}" for dep in deps)
+            parts.append(f"#{number} depends on open {named}")
+        elif number in problems:
+            parts.append(f"#{number} has a label problem: {problems[number]}")
+        elif number in reasons:
+            parts.append(f"#{number} {reasons[number]}")
+    return "nothing can start: " + "; ".join(parts) if parts else "nothing to do"
+
+
+def _busy(snapshot: Snapshot, running: list[int]) -> list[int]:
+    """Units that hold their owned paths without an agent: an open PR, or ``crew:in-progress``."""
+    with_pr = {
+        ref["number"]
+        for pr in snapshot.prs.values()
+        for ref in pr.get("closingIssuesReferences") or []
+    }
+    return sorted(
+        number
+        for number, unit in snapshot.units.items()
+        if number not in running and (number in with_pr or RUNNING in unit.labels)
+    )
+
+
+def _dependency_tag(unit: Unit, in_cycle: set[int]) -> str:
+    """Why an open dependency holds its dependent back for good, as `` (…)``, or ``""``."""
+    if unit.number in in_cycle:
+        return " (in a cycle)"
+    if IDEA in unit.labels:
+        return " (parked idea)"
+    if unit.labels & WAITING_ON_OWNER:
+        return " (waits on the owner)"
+    if not any(name in unit.labels for name in FLOW):
+        return " (not a crew unit)"
+    return ""
 
 
 def _followup(number: int, url: str, design: bool = False) -> Action:
