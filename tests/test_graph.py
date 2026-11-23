@@ -161,6 +161,21 @@ def test_ready_report_reasons():
     assert next_ready(units, running=[1], max_agents=2, busy=[2]) == picks
 
 
+def test_unit_never_holds_paths_against_its_dependencies():
+    # #132 has an open PR and depends on #144 (through #150 too): its paths must not hold
+    # back the work it waits for, or nothing can ever start.
+    units = units_of(
+        issue(132, deps=[144, 150], labels=["crew:ready"], owns=["app/"]),
+        issue(144, labels=["crew:ready"], owns=["app/editor/"]),
+        issue(150, deps=[151], labels=["crew:ready"], owns=["lib/"]),
+        issue(151, labels=["crew:ready"], owns=["app/spec.md"]),
+        issue(160, labels=["crew:ready"], owns=["app/export/"]),
+    )
+    picks, skipped = ready_report(units, running=[], max_agents=3, busy=[132])
+    assert picks == [151, 144]  # #151 blocks two units, #144 one
+    assert Skipped(160, "owns overlap with #132", startable=True) in skipped
+
+
 def test_mislabeled_idea_is_never_picked_or_refined():
     units = build_units(
         [

@@ -110,6 +110,17 @@ def test_fix_waits_for_open_dependencies():
     assert "#149: depends on open #143, #151" in result.waiting
 
 
+def test_ready_unit_with_open_pr_does_not_block_its_dependency():
+    # #132 is back at ready with PR #149 open; its owned paths overlap #144, which it needs.
+    issues = [
+        issue(132, deps=[144], labels=["crew:ready"], owns=["app/"]),
+        issue(144, labels=["crew:ready"], owns=["app/editor/"]),
+    ]
+    result = make_plan(snap(issues, [pr(149, 132, [])]))
+    assert kinds(result) == [("implement", 144)]
+    assert "#144: owns overlap with #132" not in result.waiting
+
+
 def test_ci_failure_housekeeping_names_checks():
     issues = [issue(5, labels=["crew:in-review"], owns=["a/"])]
     result = make_plan(snap(issues, [pr(9, 5, ["crew:in-review"], checks="fail")]))
