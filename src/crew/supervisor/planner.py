@@ -184,7 +184,11 @@ def plan(
                     Action("merge", number, issue, "implementer", None, prompt, branch)
                 )
         elif flow == "crew:changes-requested":
-            if not blocked(number, issue):
+            open_deps = [dep for dep in unit.depends_on if dep in snapshot.units] if unit else []
+            if open_deps:
+                named = ", ".join(f"#{dep}" for dep in open_deps)
+                result.waiting.append(f"#{number}: depends on open {named}")
+            elif not blocked(number, issue):
                 prompt = (
                     f"Use crew:implement on issue #{issue if issue is not None else number}: "
                     f"changes are requested on PR #{number} ({url})."

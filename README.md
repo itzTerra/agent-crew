@@ -230,7 +230,8 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
 
 - turns owner feedback on a PR into `crew:changes-requested`, and a red CI on a PR in review into
   the same with a comment naming the checks;
-- starts agents in this order: merge approved owner-facing PRs, fix PRs with changes requested,
+- starts agents in this order: merge approved owner-facing PRs, fix PRs with changes requested (once
+  the unit's dependencies are closed),
   review PRs whose CI is green (Sonnet for internal units, Opus for owner-facing ones), follow up
   owner answers on `crew:owner-decision` items, resume units paused by an earlier run, implement
   ready units (the `crew next` order), split a merged pitch that no unit's `## Bet` links yet

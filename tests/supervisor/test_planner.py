@@ -98,6 +98,18 @@ def test_owner_feedback_becomes_housekeeping_then_fix():
     ]  # fmt: skip
 
 
+def test_fix_waits_for_open_dependencies():
+    # A fix, like an implement, starts only once the unit's dependencies are closed.
+    issues = [
+        issue(132, deps=[143, 151], labels=["crew:changes-requested"], owns=["a/"]),
+        issue(143, labels=["crew:rough"], owns=["b/"]),
+        issue(151, labels=["crew:rough"], owns=["c/"]),
+    ]
+    result = make_plan(snap(issues, [pr(149, 132, ["crew:changes-requested"])]))
+    assert ("fix", 149) not in kinds(result)
+    assert "#149: depends on open #143, #151" in result.waiting
+
+
 def test_ci_failure_housekeeping_names_checks():
     issues = [issue(5, labels=["crew:in-review"], owns=["a/"])]
     result = make_plan(snap(issues, [pr(9, 5, ["crew:in-review"], checks="fail")]))
