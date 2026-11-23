@@ -1073,3 +1073,29 @@ def test_stuck_note_leaves_out_the_input_box(root, tmp_path):
     ((number, body),) = github.comments
     assert "Once you pick an option" in body
     assert "Go with option 1" not in body and "auto mode on" not in body
+
+
+PANE_WITH_DIALOG = (
+    "☐ Owns\n\nShould #133 own app.css, or leave it to #192?\n\n"
+    "❯ 1. Own app.css\n  2. Leave it to #192\n\n"
+    "Enter to select · ↑/↓ to navigate · Esc to cancel\n"
+    + "\n" * 30
+    + "─" * 60
+    + " crew:architect ─\n"
+)
+
+
+def test_stuck_note_keeps_the_dialog_question_above_blank_padding(root, tmp_path):
+    # The pane pads the screen with blank lines below a dialog; the note must reach its question.
+    github = FakeGitHub([ready(7, "a/")])
+    herdr = FakeHerdr()
+    herdr.output = PANE_WITH_DIALOG
+    supervisor = make(root, tmp_path, github, herdr)
+    supervisor.tick()
+    github.relabel(7, "crew:in-progress")
+    herdr.statuses[herdr.tabs[0][0]] = "blocked"
+    supervisor.tick()
+    ((_, body),) = github.comments
+    assert "Should #133 own app.css, or leave it to #192?" in body
+    assert "2. Leave it to #192" in body and "Enter to select" in body
+    assert "\n\n\n" not in body.split("```")[1]

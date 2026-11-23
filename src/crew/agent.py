@@ -36,6 +36,9 @@ STATUS_LINE_SETTINGS = json.dumps({"statusLine": STATUS_LINE})
 # without review, but for these roles the review gate is the crew's own, so it is allowed.
 MERGING_ROLES = frozenset({"implementer", "reviewer"})
 MERGE_ALLOW = ["Bash(gh pr merge:*)"]
+# Tools an auto-mode session must not have: nobody is at the pane to answer their dialog, so
+# the agent would wait until the run marks it stuck. Owner questions go on the issue instead.
+UNATTENDED_DISALLOWED = "AskUserQuestion"
 
 
 def session_settings(role: str) -> str:
@@ -262,7 +265,8 @@ def agent_argv(role: str, prompt: str | None, model: str | None, auto: bool = Fa
         role: one of ``ROLES``.
         prompt: the first message, or None to start without one.
         model: a model override, or None for the agent definition's model.
-        auto: run in Claude Code's auto permission mode.
+        auto: run in Claude Code's auto permission mode, unattended: without the
+            ``AskUserQuestion`` tool, whose dialog nobody would answer.
 
     Returns:
         The argv, starting with ``claude``.
@@ -277,6 +281,9 @@ def agent_argv(role: str, prompt: str | None, model: str | None, auto: bool = Fa
         argv += ["--model", model]
     if auto:
         argv += ["--permission-mode", "auto"]
+        # One token: --disallowedTools takes several values, and given as a separate argument
+        # it swallows the prompt even with other options in between.
+        argv.append(f"--disallowedTools={UNATTENDED_DISALLOWED}")
     argv += ["--settings", session_settings(role)]
     if prompt:
         argv.append(prompt)

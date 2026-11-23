@@ -75,7 +75,7 @@ def test_agent_argv_settings_and_auto():
     settings = json.dumps({"statusLine": {"type": "command", "command": "crew usage record"}})
     assert agent_argv("architect", "go", None, auto=True) == [
         "claude", "--agent", "crew:architect", "--permission-mode", "auto",
-        "--settings", settings, "go",
+        "--disallowedTools=AskUserQuestion", "--settings", settings, "go",
     ]  # fmt: skip
     assert agent_argv("lead", None, "sonnet") == [
         "claude", "--agent", "crew:lead", "--model", "sonnet", "--settings", settings,
