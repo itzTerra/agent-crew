@@ -176,6 +176,21 @@ def test_unit_never_holds_paths_against_its_dependencies():
     assert Skipped(160, "owns overlap with #132", startable=True) in skipped
 
 
+def test_overlap_with_work_waiting_on_the_owner_is_not_startable():
+    # Paths held by a PR that waits on the owner free up only when the owner acts.
+    units = units_of(
+        issue(5, labels=["crew:owner-accept"], owns=["a/"]),
+        issue(6, labels=["crew:ready"], owns=["a/x.py"]),
+        issue(7, labels=["crew:in-review"], owns=["b/"]),
+        issue(8, labels=["crew:ready"], owns=["b/y.py"]),
+    )
+    _, skipped = ready_report(units, running=[], max_agents=2, busy=[5, 7])
+    assert skipped == [
+        Skipped(6, "owns overlap with #5 (waits on the owner)"),
+        Skipped(8, "owns overlap with #7", startable=True),
+    ]
+
+
 def test_mislabeled_idea_is_never_picked_or_refined():
     units = build_units(
         [

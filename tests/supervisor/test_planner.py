@@ -316,7 +316,37 @@ def test_occupied_blocker_leaves_no_other_refine():
     # One live agent plus one slot: #1 and #2 are picked, #3 and #7 can still start.
     result = make_plan(snap(issues), live=[Live("followup", 5, None)], free_slots=1)
     assert [a for a in result.actions if a.kind == "refine"] == []
-    assert not any("refine" in line for line in result.waiting)
+    assert not any("slot for refine" in line for line in result.waiting)
+    assert "#6: not refined yet: 2 ready units can start (refine_ahead 2)" in result.waiting
+
+
+def test_units_held_by_owner_accept_paths_dont_stop_refinement():
+    # #135 and #136 wait behind #5's paths until the owner accepts it: refine meanwhile.
+    issues = [
+        issue(5, labels=["crew:owner-accept"], owns=["app/"]),
+        issue(135, labels=["crew:ready"], owns=["app/upload/"]),
+        issue(136, labels=["crew:ready"], owns=["app/export/"]),
+        issue(58, labels=["crew:rough"], owns=["d/"]),
+        issue(133, labels=["crew:rough"], owns=["e/"]),
+    ]
+    result = make_plan(snap(issues, [pr(9, 5, ["crew:owner-accept"])]), free_slots=2)
+    assert kinds(result) == [("refine", 58)]
+
+
+def test_rough_units_left_unrefined_say_why():
+    issues = [
+        issue(1, labels=["crew:ready"], owns=["a/"]),
+        issue(2, labels=["crew:ready"], owns=["b/"]),
+        issue(3, labels=["crew:ready"], owns=["c/"]),
+        issue(4, labels=["crew:ready"], owns=["d/"]),
+        issue(58, labels=["crew:rough"], owns=["e/"]),
+        issue(133, labels=["crew:rough"], owns=["f/"]),
+    ]
+    result = make_plan(snap(issues), free_slots=2)
+    assert kinds(result) == [("implement", 1), ("implement", 2)]
+    reason = "not refined yet: 2 ready units can start (refine_ahead 2)"
+    assert f"#58: {reason}" in result.waiting
+    assert f"#133: {reason}" in result.waiting
 
 
 def test_parked_idea_is_never_picked():

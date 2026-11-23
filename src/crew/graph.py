@@ -36,7 +36,9 @@ class Skipped:
 
     number: int
     reason: str
-    startable: bool = False  # left out only for capacity (WIP limit, owns overlap)
+    # Left out only for capacity: the WIP limit, or an owns overlap with work that doesn't wait
+    # on the owner.
+    startable: bool = False
 
 
 def label_names(item: dict) -> set[str]:
@@ -284,7 +286,11 @@ def ready_report(
             ),
             None,
         )
-        if overlap is not None:
+        if overlap is not None and units[overlap].labels & WAITING_ON_OWNER:
+            # Those paths free up only when the owner acts, so the unit can't start soon.
+            reason = f"owns overlap with #{overlap} (waits on the owner)"
+            skipped.append(Skipped(unit.number, reason))
+        elif overlap is not None:
             skipped.append(Skipped(unit.number, f"owns overlap with #{overlap}", True))
         elif len(chosen) >= max_agents - len(running):
             used = len(running) + len(chosen)

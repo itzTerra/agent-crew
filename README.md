@@ -236,7 +236,9 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
   owner answers on `crew:owner-decision` items, resume units paused by an earlier run, implement
   ready units (the `crew next` order), split a merged pitch that no unit's `## Bet` links yet
   into units (one at a time, by the architect), and refine rough units (first those that ready
-  units depend on) to keep `refine_ahead` ready units that can start;
+  units depend on) to keep `refine_ahead` ready units that can start (a unit held only by the
+  owned paths of work that waits on the owner doesn't count; each rough unit left unrefined
+  gets a `waiting:` line);
 - each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode,
   in a worktree under `.crew/worktrees/`. Claude Code asks to trust every new git root, and each
   worktree is one, so the run marks the worktree it just made as trusted in Claude Code's config
