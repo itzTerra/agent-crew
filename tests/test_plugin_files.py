@@ -272,3 +272,13 @@ def test_owner_summary_points_to_how_to_run_instead_of_repeating_it():
         outcome = text[text.index("**Pass, owner-facing:**") :].split("- **Pass, internal:**")[0]
         assert "how to run it" not in outcome
         assert '"How to run"' in outcome and "don't repeat" in outcome
+
+
+def test_merged_pitch_pr_is_set_done():
+    # A pitch PR closes no issue: whoever merges it clears its accept label and assignee.
+    pitch = skill_text("pitch")
+    after_merge = pitch[pitch.index("**Merging that PR is the bet.**") :]
+    assert "crew labels set-state P done" in after_merge
+    merge = skill_text("merge")
+    clean_up = merge[merge.index("## 4. Clean up") :]
+    assert "closes no issue" in clean_up and "crew labels set-state P done" in clean_up

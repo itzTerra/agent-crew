@@ -55,8 +55,10 @@ Run `crew check-docs`; it must report no errors for the pitch.
 Commit the pitch on a branch `pitch/NNNN`, push it and open a PR labeled `crew:owner-facing`
 and the pitch's priority (`crew:must`, `crew:should` or `crew:later`), then run
 `crew labels set-state P owner-accept` on it, which also assigns the owner. **Merging that PR is the bet.** The owner merges it on GitHub, approves
-it (a `crew run` then merges it), or tells you to merge it, and then you merge it. If the owner
-declines, close the PR with their reason quoted.
+it (a `crew run` then merges it), or tells you to merge it, and then you merge it with
+`gh pr merge P --rebase`, as a command of its own. Once it is merged, by you or on GitHub, run
+`crew labels set-state P done`: it clears `crew:owner-accept` and the owner's assignment. If the
+owner declines, close the PR with their reason quoted.
 
 When the pitch started from a `crew:idea` issue, the PR body says `From idea #N`, never a
 closing reference to it. Once the PR is open, close the idea issue with a comment linking the
