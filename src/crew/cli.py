@@ -124,7 +124,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--check", action="store_true", help="print the identity the agent would use; start nothing"
     )
     agent.add_argument(
-        "--auto", action="store_true", help="run in Claude Code's auto permission mode"
+        "--auto",
+        action="store_true",
+        help="run unattended in Claude Code's auto permission mode, with no question dialogs",
     )
     agent.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: .)")
     agent.set_defaults(handler=_cmd_agent)

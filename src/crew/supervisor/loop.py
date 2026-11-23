@@ -37,6 +37,9 @@ NUDGE = (
 STUCK_LINES = 20
 # Extra lines read for a stuck note, so the input box can be cut and STUCK_LINES remain.
 INPUT_BOX_LINES = 15
+# Extra lines read for a stuck note past the input box: a full-screen pane pads below a dialog
+# with blank lines, which are collapsed, and the dialog's question sits above them.
+PANE_PADDING_LINES = 100
 PROMPT_MARK = "❯"
 RULE = re.compile(r"^\s*─{8,}")
 GITHUB_RETRIES = 3
@@ -166,6 +169,24 @@ def without_input_box(lines: list[str]) -> list[str]:
                 kept.pop()
             return kept
     return lines
+
+
+def without_blank_runs(lines: list[str]) -> list[str]:
+    """``lines`` with each run of blank lines cut to one, and none at either end.
+
+    Args:
+        lines: the pane's last lines, oldest first.
+
+    Returns:
+        The lines with only the blank lines that separate text kept.
+    """
+    kept: list[str] = []
+    for line in lines:
+        if line.strip() or (kept and kept[-1].strip()):
+            kept.append(line)
+    while kept and not kept[-1].strip():
+        kept.pop()
+    return kept
 
 
 class Supervisor:
@@ -405,8 +426,9 @@ class Supervisor:
         self.paused.append({"number": number, "branch": record.branch})
 
     def _mark_stuck(self, record: AgentRecord, why: str) -> None:
-        output = self.herdr.read(record.pane, STUCK_LINES + INPUT_BOX_LINES)
-        lines = without_input_box(output.rstrip("\n").splitlines())[-STUCK_LINES:]
+        output = self.herdr.read(record.pane, STUCK_LINES + INPUT_BOX_LINES + PANE_PADDING_LINES)
+        lines = without_blank_runs(without_input_box(output.rstrip("\n").splitlines()))
+        lines = lines[-STUCK_LINES:]
         body = f"crew run: the agent {why}. Last output:\n\n```\n" + "\n".join(lines) + "\n```"
         # Reported on the unit's issue; PR work names the PR.
         target = record.issue if record.kind in PR_KINDS and record.issue else record.number

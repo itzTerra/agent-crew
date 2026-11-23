@@ -85,6 +85,16 @@ def test_agent_argv_roles_and_model():
     assert all(role in str(excinfo.value) for role in agent.ROLES)
 
 
+def test_auto_sessions_never_open_a_question_dialog():
+    # Nobody answers a dialog in an unattended session; it would sit there until marked stuck.
+    argv = agent_argv("architect", "Use crew:refine on issue #133 only", None, auto=True)
+    # One token: as separate arguments, claude reads the prompt as another tool to disallow.
+    assert "--disallowedTools=AskUserQuestion" in argv
+    assert "--disallowedTools" not in argv
+    assert argv[-1] == "Use crew:refine on issue #133 only"
+    assert not any(a.startswith("--disallowedTools") for a in agent_argv("lead", None, None))
+
+
 def test_noreply_email():
     assert noreply_email("botty", 42) == "42+botty@users.noreply.github.com"
 
@@ -204,6 +214,7 @@ def test_launch_execs_claude_with_env(project):
         "crew:reviewer",
         "--permission-mode",
         "auto",
+        "--disallowedTools=AskUserQuestion",
         "--settings",
         agent.session_settings("reviewer"),
         "Use crew:review on PR #3",

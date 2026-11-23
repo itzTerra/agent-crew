@@ -282,3 +282,11 @@ def test_merged_pitch_pr_is_set_done():
     merge = skill_text("merge")
     clean_up = merge[merge.index("## 4. Clean up") :]
     assert "closes no issue" in clean_up and "crew labels set-state P done" in clean_up
+
+
+@pytest.mark.parametrize("name", ["architect", "designer", "implementer", "reviewer"])
+def test_run_agents_never_use_interactive_prompts(name):
+    text = (PLUGIN / "agents" / f"{name}.md").read_text(encoding="utf-8")
+    rule = text[text.index("**No interactive prompts:**") :].split("\n- ")[0]
+    for phrase in ("AskUserQuestion", "crew labels ask N decision", "on the issue"):
+        assert phrase in rule, f"{name}.md interactive-prompt rule lacks {phrase!r}"

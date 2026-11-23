@@ -239,14 +239,16 @@ Every tick (`poll_seconds`) the run reads GitHub and then:
   units depend on) to keep `refine_ahead` ready units that can start (a unit held only by the
   owned paths of work that waits on the owner doesn't count; each rough unit left unrefined
   gets a `waiting:` line);
-- each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode,
+- each agent runs `crew agent <role> --auto` in its own herdr tab, in Claude Code's auto mode
+  and without the `AskUserQuestion` tool (nobody answers its dialog; questions go on the issue),
   in a worktree under `.crew/worktrees/`. Claude Code asks to trust every new git root, and each
   worktree is one, so the run marks the worktree it just made as trusted in Claude Code's config
   (`~/.claude.json`, or `.claude.json` in `CLAUDE_CONFIG_DIR`), the same flag the dialog's "Yes"
   sets;
 - an agent that stops before its unit moves on is nudged once; if it stops again, the run
   comments its last output on the issue and sets `crew:owner-stuck`. The note leaves out the
-  agent's input box, so unsent text never reaches GitHub;
+  agent's input box, so unsent text never reaches GitHub, and collapses blank lines, so a
+  dialog's question shows above its footer;
 - the run comments and moves labels with the agents' token (checked against `agent_login`, as
   for `crew agent`), never your login, and marks its comments `<!-- crew run -->`; agents never
   take those as your input.
