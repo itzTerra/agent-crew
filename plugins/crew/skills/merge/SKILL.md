@@ -54,4 +54,5 @@ issue and comment the paths, with the PR's full URL.
 
 Remove the worktree (`git worktree remove <path>` or the herdr equivalent) and the local branch.
 Check that the linked issue `#N` closed, then clear its workflow labels and the PR's:
-`crew labels set-state N done`.
+`crew labels set-state N done`. For a PR that closes no issue (a pitch), run
+`crew labels set-state P done` instead.

@@ -218,6 +218,19 @@ def test_set_state_done_unassigns_everyone_managed():
     assert sorted(assignee_calls(fake)) == [("DELETE", 5, "owner"), ("DELETE", 9, "bot")]
 
 
+def test_set_state_done_on_a_merged_pitch_pr():
+    # A pitch PR closes no issue; done still clears its accept label and the owner.
+    github, fake = gh_with(
+        [],
+        {27: ["crew:owner-accept", "crew:owner-facing"]},
+        merged=[pr(27, closes=[])],
+        assigned={27: ["owner"]},
+    )
+    assert set_state(github, 27, "done", LOGINS).numbers == [27]
+    assert assignee_calls(fake) == [("DELETE", 27, "owner")]
+    assert ("DELETE", 27, "crew:owner-accept") in label_calls(fake)
+
+
 def test_set_state_cli_prints_warnings(monkeypatch, capsys):
     github, _ = gh_with([], {9: ["crew:in-progress"]}, refused={"agent-b"})
     monkeypatch.setattr("crew.cli.make_github", lambda repo: github)
