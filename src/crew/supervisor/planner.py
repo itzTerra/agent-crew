@@ -257,6 +257,11 @@ def plan(
         if startable >= config.refine_ahead:
             # Enough ready work can start: refine only what blocks other ready work.
             found = blockers(snapshot.units)
+            reason = (
+                f"not refined yet: {startable} ready units can start "
+                f"(refine_ahead {config.refine_ahead})"
+            )
+            result.waiting += [f"#{number}: {reason}" for number in order if number not in found]
             order = [number for number in order if number in found]
         for number in order:
             if number in occupied or number in problems:
