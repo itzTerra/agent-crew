@@ -36,8 +36,10 @@ Read the PR's "Review rounds" section. Your round is the next number. Edit the P
 
 ## 5. Outcome
 
-- **Pass, owner-facing:** comment a short owner summary (what it does, how to run it, the
-  checklist), then `crew labels set-state P owner-accept`.
+- **Pass, owner-facing:** comment a short owner summary (what it does, the checklist you
+  walked). Point to the PR body's "How to run" and don't repeat its command; add only what the
+  owner needs beyond it, such as how to reach a rare case. Then
+  `crew labels set-state P owner-accept`.
 - **Pass, internal:** use the `crew:merge` skill.
 - **Fail (rounds 1–2):** one comment with numbered findings, each with file, line, the problem
   and what would fix it; then `crew labels set-state P changes-requested`.

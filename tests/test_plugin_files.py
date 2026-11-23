@@ -263,3 +263,12 @@ def test_lead_links_every_item_in_every_message():
     assert "at least once in every message" in lead and "repeated lists" in lead
     assert "link each" in lead
     assert "at least once in every message" in " ".join(skill_text("run").split())
+
+
+def test_owner_summary_points_to_how_to_run_instead_of_repeating_it():
+    # The PR body already has "How to run"; a second copy in the review comment duplicated it.
+    reviewer = (PLUGIN / "agents" / "reviewer.md").read_text(encoding="utf-8")
+    for text in (skill_text("review"), reviewer):
+        outcome = text[text.index("**Pass, owner-facing:**") :].split("- **Pass, internal:**")[0]
+        assert "how to run it" not in outcome
+        assert '"How to run"' in outcome and "don't repeat" in outcome

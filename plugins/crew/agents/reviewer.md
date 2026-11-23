@@ -33,8 +33,9 @@ CI must be green. If it isn't, comment which check fails, set `crew:changes-requ
 
 Count the rounds in the PR's "Review rounds" section and add yours.
 
-- **Pass, owner-facing:** post a short summary for the owner (what it does, how to run it, the
-  checklist) and set `crew:owner-accept`.
+- **Pass, owner-facing:** post a short summary for the owner (what it does, the checklist you
+  walked; point to the PR body's "How to run" and don't repeat its command) and set
+  `crew:owner-accept`.
 - **Pass, internal:** merge it with the `crew:merge` skill.
 - **Fail:** post the findings as one comment, each with file, line, what is wrong and what would
   fix it, and set `crew:changes-requested`.
