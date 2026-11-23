@@ -246,7 +246,8 @@ def ready_report(
 
     A unit is eligible when it is labeled ready, is not a parked idea, waits on nothing from
     the owner, every dependency is closed, and it is not in a dependency cycle. Units whose
-    owned paths overlap a running, busy or already chosen unit are skipped. ``running`` units
+    owned paths overlap a running, busy or already chosen unit are skipped, unless that unit
+    depends on them, directly or indirectly (it can't finish first). ``running`` units
     use agent slots; ``busy`` units (in review or waiting on the owner) only hold their paths.
 
     Returns:
@@ -271,9 +272,18 @@ def ready_report(
     )
 
     taken = [(n, units[n].owns) for n in [*running, *busy] if n in units]
+    dependents = _all_dependents(units)
     chosen: list[int] = []
     for unit in eligible:
-        overlap = next((n for n, owns in taken if owns_overlap(unit.owns, owns)), None)
+        # A unit that waits for this one never holds paths against it: it can't finish first.
+        overlap = next(
+            (
+                n
+                for n, owns in taken
+                if n not in dependents[unit.number] and owns_overlap(unit.owns, owns)
+            ),
+            None,
+        )
         if overlap is not None:
             skipped.append(Skipped(unit.number, f"owns overlap with #{overlap}", True))
         elif len(chosen) >= max_agents - len(running):

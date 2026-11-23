@@ -102,7 +102,8 @@ of guessing.
 **Pick order** (`crew next`): priority, then the units that block the most others, then the
 oldest. A unit is eligible only when every dependency is closed, it is not in a dependency cycle,
 and it waits on nothing from the owner. Two units run at once only if their owned paths don't
-overlap. The number of agents at once is the work-in-progress limit.
+overlap; a unit never holds its paths against a unit it depends on, since it can't finish
+first. The number of agents at once is the work-in-progress limit.
 
 **Discovered work**: bugs and debt that only fix or tidy existing behavior are filed as rough
 units. A find that changes agreed behavior, or a gap that blocks the current bet or puts it at
