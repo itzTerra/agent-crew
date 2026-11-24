@@ -123,12 +123,27 @@ def _check_state(check: dict) -> tuple[str, str]:
     return name, "pass"
 
 
+def _latest_states(pr: dict) -> list[tuple[str, str]]:
+    """(name, state) of the latest entry per check name in the PR's statusCheckRollup.
+
+    A re-run, or a new run after closing and reopening the PR, adds an entry with the same name
+    on the same commit; only the one that started last counts, so a stale failure doesn't.
+    """
+    latest: dict[str, tuple[str, int, str]] = {}
+    for index, check in enumerate(pr.get("statusCheckRollup") or []):
+        name, state = _check_state(check)
+        started = str(check.get("startedAt") or check.get("createdAt") or "")
+        if name not in latest or (started, index) >= latest[name][:2]:
+            latest[name] = (started, index, state)
+    return [(name, state) for name, (_, _, state) in latest.items()]
+
+
 def checks_state(pr: dict, required: list[str]) -> Literal["pass", "fail", "pending", "none"]:
     """The PR's CI state, counting only the ``required`` checks when any are named.
 
     A required check that hasn't reported yet is pending.
     """
-    states = [_check_state(check) for check in pr.get("statusCheckRollup") or []]
+    states = _latest_states(pr)
     if required:
         names = set(required)
         states = [(name, state) for name, state in states if name in names]
@@ -148,8 +163,7 @@ def failed_checks(pr: dict, required: list[str]) -> list[str]:
     names = set(required)
     return [
         name
-        for check in pr.get("statusCheckRollup") or []
-        for name, state in [_check_state(check)]
+        for name, state in _latest_states(pr)
         if state == "fail" and (not names or name in names)
     ]
 

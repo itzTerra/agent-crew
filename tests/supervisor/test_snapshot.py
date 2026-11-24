@@ -7,6 +7,7 @@ from crew.supervisor.snapshot import (
     MARKER,
     OwnerActivity,
     checks_state,
+    failed_checks,
     owner_activity,
     take_snapshot,
 )
@@ -102,6 +103,19 @@ def test_checks_state_cases():
     assert checks_state(pr(run("test"), run("other", conclusion="FAILURE")), ["test"]) == "pass"
     status = {"__typename": "StatusContext", "context": "ci/x", "state": "FAILURE"}
     assert checks_state(pr(status), []) == "fail"
+
+
+def test_checks_state_counts_only_the_latest_run_of_a_check():
+    def pr(*checks):
+        return {"statusCheckRollup": list(checks)}
+
+    stale = {**run("check-docs", conclusion="FAILURE"), "startedAt": "2026-11-23T21:26:26Z"}
+    fresh = {**run("check-docs"), "startedAt": "2026-11-24T20:35:29Z"}
+    assert checks_state(pr(fresh, stale), ["check-docs"]) == "pass"
+    assert failed_checks(pr(fresh, stale), ["check-docs"]) == []
+    assert checks_state(pr(stale, fresh), []) == "pass"
+    rerun_failed = {**run("check-docs", conclusion="FAILURE"), "startedAt": "2026-11-25T08:00:00Z"}
+    assert checks_state(pr(fresh, rerun_failed), ["check-docs"]) == "fail"
 
 
 def test_take_snapshot_calls():
