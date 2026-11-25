@@ -32,6 +32,12 @@ first; large → `superpowers:writing-plans`, then execute the plan.
 - Apply the spec delta to the living spec file it targets, in the same branch. The spec must
   describe the product as it is after this PR, with no delta headings.
 - Commit in the shape the project's `merge_rules` ask for.
+- **Screens follow their chosen mockup.** When the unit changes something the owner sees and a
+  mockup the owner chose covers it (the issue names it, or the project's design index lists it),
+  build it to match: layout, what sits in which bar or card, scrolling, header sizes, icons, and
+  the owner's feedback on the mockup's PR. Never deviate on your own judgement, even for a
+  better result: comment the difference, why, and the options with a recommendation, run
+  `crew labels ask N decision`, and stop until the owner answers.
 
 If a question comes up that the unit doesn't settle, use the safety valve in your brief: comment,
 label, push, stop.
@@ -44,7 +50,9 @@ which stacks on the state label), and stop before opening the PR.
 ## 3. Check
 
 Run the project's tests and linters and `crew check-docs`. All must pass. Walk through each
-scenario yourself.
+scenario yourself. For a screen with a chosen mockup, open both side by side in a browser and add
+a **Matches the mockup** section to the PR body: what you compared, and any difference the owner
+approved, with a link to the approval.
 
 ## 4. Open the PR
 

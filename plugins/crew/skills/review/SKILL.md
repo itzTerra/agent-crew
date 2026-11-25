@@ -27,7 +27,10 @@ PR summary; check the code.
 Spec conformance (living spec updated and matches the code, no stale description elsewhere),
 fit and reuse, safety and validation (client soft, server hard), accessibility, error messages,
 performance (N+1, serial work that could run in parallel). For UI work, walk the PR's manual
-checklist in a real browser.
+checklist in a real browser, and compare the screen with its chosen mockup side by side at
+desktop and phone width: layout, bars and cards, scrolling, header sizes, icons, and the owner's
+feedback on the mockup's PR. A difference the owner hasn't approved fails the review, even when
+it looks like an improvement.
 
 ## 4. Count the round
 

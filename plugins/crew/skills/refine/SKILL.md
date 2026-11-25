@@ -41,11 +41,14 @@ ahead, not the whole backlog.
    - **Depends on:** bullet items `- #N`, or exactly `none`;
    - **Kind:** `owner-facing` (user-visible, design, decisions, anything in an owner decision
      area) or `internal`. When unsure, `owner-facing`.
-3. If the unit's deliverable is design (a design system, or flow and screen alternatives as
+3. If the unit changes a screen that a chosen mockup covers, name the mockup file and the part
+   of it in the goal, and list the owner's feedback from the mockup's PR that applies. The
+   implementer builds to it and the reviewer checks against it.
+4. If the unit's deliverable is design (a design system, or flow and screen alternatives as
    mockups), add the `crew:design` label, so a run gives it to the designer instead of the
    implementer.
-4. Run `crew check-issue --number N` and fix the body until it reports nothing.
-5. Set `crew:ready`: `crew labels set-state N ready`.
+5. Run `crew check-issue --number N` and fix the body until it reports nothing.
+6. Set `crew:ready`: `crew labels set-state N ready`.
 
 Scale the effort to the unit: a few lines for a small one, a short brainstorm for a larger one.
 
